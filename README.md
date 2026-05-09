@@ -29,16 +29,15 @@ chart-flow-longchain/
 │   │   ├── __init__.py       # 模块包初始化
 │   │   ├── ai_client.py       # AI 客户端（兼容 OpenAI SDK）
 │   │   ├── assistant.py       # AI 助手/Agent（旧版）
+│   │   ├── checkpoint/        # 检查点存储（独立模块）
+│   │   │   ├── __init__.py
+│   │   │   ├── base.py
+│   │   │   └── memory.py
 │   │   ├── langgraph/         # LangGraph 模块（新版）
 │   │   │   ├── __init__.py
 │   │   │   ├── agent.py       # LangGraph Agent（状态图定义）
-│   │   │   ├── rag.py         # RAG 业务逻辑
-│   │   │   ├── state.py       # 状态定义
-│   │   │   └── checkpoint/    # 检查点存储
-│   │   │       ├── __init__.py
-│   │   │       ├── base.py
-│   │   │       └── memory.py
-│   │   ├── rag/               # 模块化 RAG 框架（兼容层）
+│   │   │   └── state.py       # 状态定义
+│   │   ├── rag/               # 模块化 RAG 框架（含 RAGWorkflow）
 │   │   │   ├── __init__.py
 │   │   │   ├── rag_chain.py   # RAG 链核心
 │   │   │   ├── indexer/       # 索引模块
