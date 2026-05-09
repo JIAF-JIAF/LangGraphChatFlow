@@ -115,7 +115,7 @@ def start():
         status = {
             "status": "ready",
             "message": "客服系统已就绪 (LangGraph 版本)",
-            "model": "deepseek-v4-pro"
+            "model": "qwen3.6-flash"
         }
         return jsonify(status)
     except Exception as e:

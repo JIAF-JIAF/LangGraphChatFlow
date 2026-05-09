@@ -2,14 +2,14 @@
 LangGraph Agent 实现
 
 标准 LangGraph RAG 流程：
-START → router → ┌── 需要检索 ──→ retrieve → generate → END
+START → router → ┌── 需要检索 ──→ retrieve → generate → call_model → END
                   │
                   └── 不需要检索 ──→ call_model → END
 
 采用 LangGraph 标准会话管理：
 - 使用 Checkpointer 进行状态持久化
 - 通过 thread_id 实现会话隔离
-- 状态由 LangGraph 自动管理，无需手动维护 chat_history
+- 在 call_model 节点中更新对话历史
 """
 
 import time
@@ -18,7 +18,7 @@ from langgraph.graph import StateGraph, END, START
 from langchain_core.messages import HumanMessage, AIMessage
 
 from .state import AgentState
-from .checkpoint import MemorySaver, BaseCheckpointSaver
+from .checkpoint import MemorySaver
 
 
 class LangGraphAgent:
@@ -29,6 +29,7 @@ class LangGraphAgent:
     - 调用 RAGWorkflow 处理检索逻辑
     - 调用外部 Agent 处理对话（可替换）
     - 使用 Checkpointer 进行状态持久化（可替换）
+    - 在 call_model 节点中更新对话历史
     """
 
     def __init__(
@@ -45,14 +46,14 @@ class LangGraphAgent:
             agent: 外部 Agent 实例（可替换），需实现 invoke(query, session_id) 方法
             rag_workflow: RAGWorkflow 实例，用于处理检索逻辑（可替换）
             checkpointer: 检查点存储实例（可替换），默认为 MemorySaver。
-                         支持 RedisSaver、SQLiteSaver 或自定义实现 BaseCheckpointSaver 接口的类
+                         支持自定义实现 BaseCheckpointSaver 接口的类
             verbose: 是否输出详细日志
         """
         self._agent = agent              # 可替换的 Agent
         self._rag_workflow = rag_workflow  # 可替换的 RAG
         self._verbose = verbose
 
-        # 使用传入的 checkpointer，默认使用 MemorySaver
+        # 使用传入的 checkpointer，默认使用自定义 MemorySaver（保持不动，支持外部传入）
         self._checkpointer = checkpointer or MemorySaver()
         self._graph = None
 
@@ -69,23 +70,6 @@ class LangGraphAgent:
         if self._verbose:
             timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
             print(f"[{timestamp}] [LangGraph] [{level}] {message}", flush=True)
-
-    def _update_chat_history(self, chat_history: List, query: str, answer: str) -> List:
-        """
-        更新对话历史（统一方法）
-
-        Args:
-            chat_history: 当前对话历史
-            query: 用户查询
-            answer: 回答内容
-
-        Returns:
-            更新后的对话历史
-        """
-        return chat_history + [
-            HumanMessage(content=query),
-            AIMessage(content=answer)
-        ]
 
     def _router_node(self, state: AgentState) -> AgentState:
         """
@@ -137,19 +121,18 @@ class LangGraphAgent:
 
     def _generate_node(self, state: AgentState) -> AgentState:
         """
-        生成节点：基于检索结果生成回答
+        生成节点：调用 RAG 生成基于文档的回答
 
         Args:
             state: 当前状态（包含 query, documents, chat_history）
 
         Returns:
-            更新后的状态（返回 answer 和更新后的 chat_history）
+            更新后的状态（返回 RAG 生成的 answer，传给 call_model 进行最终回答）
         """
         query = state["query"]
         documents = state.get("documents", [])
-        chat_history = state.get("chat_history", [])
 
-        self._log(f"[节点: generate] 开始执行文档数: {len(documents)}")
+        self._log(f"[节点: generate] 开始执行，文档数: {len(documents)}")
 
         # 调用 RAG 生成回答
         if self._rag_workflow:
@@ -157,39 +140,58 @@ class LangGraphAgent:
         else:
             answer = "RAG 服务不可用，请稍后重试"
 
-        self._log(f"[节点: generate] 生成完成: {answer[:50]}...")
+        self._log(f"[节点: generate] RAG 生成完成: {answer[:50]}...")
 
-        # 使用统一方法更新对话历史
-        updated_chat_history = self._update_chat_history(chat_history, query, answer)
-        return {"answer": answer, "chat_history": updated_chat_history}
+        # 返回 RAG 生成的回答，传给 call_model 进行最终处理
+        return {"answer": answer}
+
+    def _build_enhanced_query(self, query: str, rag_answer: str) -> str:
+        """
+        构建增强查询
+
+        Args:
+            query: 原始用户查询
+            rag_answer: RAG 生成的结果
+
+        Returns:
+            增强后的查询
+        """
+        if rag_answer:
+            return f"基于以下信息回答问题：\n{rag_answer}\n\n问题：{query}"
+        return query
 
     def _call_model_node(self, state: AgentState) -> AgentState:
         """
-        调用模型节点：调用外部 Agent
+        调用模型节点：调用外部 Agent（基于 RAG 结果或原始问题）
 
         Args:
-            state: 当前状态（包含 query, chat_history）
+            state: 当前状态（包含 query, answer(RAG结果), chat_history）
 
         Returns:
             更新后的状态（返回 answer 和更新后的 chat_history）
         """
         query = state["query"]
+        rag_answer = state.get("answer", "")
         chat_history = state.get("chat_history", [])
 
-        self._log(f"[节点: call_model] 开始执行，对话历史长度: {len(chat_history)}")
+        self._log(f"[节点: call_model] 开始执行，RAG结果: {'有' if rag_answer else '无'}，对话历史长度: {len(chat_history)}")
 
-        # 调用外部 Agent，传递对话历史
+        # 总是调用 Agent，基于 RAG 结果或原始问题
         if self._agent:
-            result = self._agent.invoke(query, None, chat_history)
+            enhanced_query = self._build_enhanced_query(query, rag_answer)
+
+            result = self._agent.invoke(enhanced_query, None, chat_history)
             answer = result.get("answer", "")
         else:
-            answer = "Agent 服务不可用，请稍后重试"
+            # 如果没有 Agent，直接使用 RAG 结果或返回错误
+            answer = rag_answer if rag_answer else "Agent 服务不可用，请稍后重试"
 
         self._log(f"[节点: call_model] 执行完成: {answer[:50]}...")
 
-        # 使用统一方法更新对话历史
-        updated_chat_history = self._update_chat_history(chat_history, query, answer)
-        return {"answer": answer, "chat_history": updated_chat_history}
+        result_state = self._update_chat_history(state, query, answer)
+        result_state["answer"] = answer
+
+        return result_state
 
     def _should_retrieve(self, state: AgentState) -> Literal["retrieve", "call_model"]:
         """
@@ -205,15 +207,36 @@ class LangGraphAgent:
         self._log(f"[条件路由] 决策: {decision}")
         return decision
 
+    def _update_chat_history(self, state: AgentState, query: str, answer: str) -> AgentState:
+        """
+        统一更新对话历史
+
+        Args:
+            state: 当前状态
+            query: 用户查询
+            answer: AI 回答
+
+        Returns:
+            更新后的状态（包含新的 chat_history）
+        """
+        if query and answer:
+            self._log(f"[_update_chat_history] 自动更新对话历史")
+            return {
+                "chat_history": state.get("chat_history", []) + [
+                    HumanMessage(content=query),
+                    AIMessage(content=answer)
+                ]
+            }
+        return state
+
     def _build_graph(self):
         """
         构建状态图
 
-        节点：
-        - router: 路由节点
-        - retrieve: 检索节点
-        - generate: 生成节点（基于检索结果）
-        - call_model: 调用外部 Agent 节点
+        标准 RAG 流程：
+        START → router → ┌── 需要检索 ──→ retrieve → generate → call_model → END
+                          │
+                          └── 不需要检索 ──→ call_model → END
         """
         self._log("开始构建 LangGraph 状态图...")
 
@@ -232,11 +255,13 @@ class LangGraphAgent:
             {"retrieve": "retrieve", "call_model": "call_model"}
         )
 
+        # 完整的 RAG 流程：retrieve → generate → call_model
         self._graph.add_edge("retrieve", "generate")
-        self._graph.add_edge("generate", END)
+        self._graph.add_edge("generate", "call_model")
+
         self._graph.add_edge("call_model", END)
 
-        # 使用 MemorySaver 进行状态持久化
+        # 使用 checkpointer 进行状态持久化（保持不动，支持外部传入）
         self._graph = self._graph.compile(checkpointer=self._checkpointer)
         self._log("LangGraph 状态图构建完成")
 
@@ -257,8 +282,6 @@ class LangGraphAgent:
         self._log(f"会话ID: {session_id}")
         self._log(f"用户查询: {query}")
 
-        # 只需传入 query，LangGraph 自动从 checkpointer 恢复 chat_history
-        # 节点返回值会自动合并到状态中（包含 chat_history 更新）
         result = self._graph.invoke(
             {"query": query},
             config={"configurable": {"thread_id": session_id}}
