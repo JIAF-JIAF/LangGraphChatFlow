@@ -6,7 +6,7 @@ import os
 from typing import List, Optional, Dict, Any
 from langchain_core.documents import Document
 from langchain_community.vectorstores import Chroma
-from langchain.tools import StructuredTool
+from langchain_core.tools import StructuredTool
 
 from .base import BaseIndexer
 

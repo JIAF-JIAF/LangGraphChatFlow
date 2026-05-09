@@ -1,7 +1,7 @@
 """
 智能客服 Agent 主应用
 Flask Web 服务入口
-LangChain 版本
+LangGraph 版本（渐进式迁移）
 """
 
 import uuid
@@ -13,7 +13,8 @@ from dotenv import load_dotenv
 
 from modules.ai_client import AIClient
 from modules.rag import RAGChain
-from modules.assistant import Agent
+from modules.assistant import Agent as LangChainAgent
+from modules.langgraph import LangGraphAgent
 from modules.prompt import create_few_shot_prompt
 from modules.rate_limit import RateLimiter
 from mcp_module import MCPToolService, config
@@ -51,7 +52,7 @@ def init_system():
     global assistant_instance, rag_chain_instance
 
     print("=" * 50)
-    print("智能客服系统启动中... (LangChain 版本)")
+    print("智能客服系统启动中... (LangGraph 版本 - 渐进式迁移)")
     print("=" * 50)
 
     print("\n[1/3] 初始化 AI 客户端...")
@@ -85,13 +86,18 @@ def init_system():
         # 支持多个 MCP 服务器配置，自动合并所有服务器的工具
         tools = MCPToolService.get_tools()
 
-        assistant_instance = Agent(options={
+        # 创建 LangChain Agent（原有实现）
+        langchain_agent = LangChainAgent(options={
             "prompt": create_few_shot_prompt(),  # 使用默认示例
             "ragChain": rag_chain_instance,
             "tools": tools,
             "aiClient": ai_client
         })
-        print("AI 助手初始化完成")
+        
+        # 将 LangChain Agent 封装到 LangGraphAgent 中（渐进式迁移）
+        assistant_instance = LangGraphAgent(langchain_agent=langchain_agent)
+        
+        print("AI 助手初始化完成 (LangGraph 封装模式)")
     except Exception as e:
         print("AI 助手初始化失败: {}".format(e))
         raise
@@ -119,7 +125,7 @@ def start():
     try:
         status = {
             "status": "ready",
-            "message": "客服系统已就绪 (LangChain)",
+            "message": "客服系统已就绪 (LangGraph - 渐进式迁移)",
             "model": "deepseek-v4-pro",
             "knowledge_base": rag_chain_instance is not None
         }

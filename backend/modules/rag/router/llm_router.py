@@ -14,7 +14,7 @@
 """
 
 from typing import Optional, Dict, Any
-from langchain.schema import HumanMessage
+from langchain_core.messages import HumanMessage
 
 from .base import BaseRouter
 
@@ -52,7 +52,6 @@ class LLMRouter(BaseRouter):
         Returns:
             LLM返回的响应文本
         """
-        from langchain.schema import HumanMessage
         response = self.llm_client.chat.invoke([HumanMessage(content=prompt)])
         return response.content if hasattr(response, 'content') else str(response)
 

@@ -28,7 +28,7 @@ RAG（Retrieval-Augmented Generation）是检索增强生成的缩写，
 import os
 from typing import Optional, Dict, Any, List
 from langchain_core.documents import Document
-from langchain.tools import StructuredTool
+from langchain_core.tools import StructuredTool
 
 from .indexer import BaseIndexer, ChromaIndexer
 from .retriever import BaseRetriever, SimpleVectorRetriever, RerankingRetriever

@@ -15,6 +15,10 @@ langchain-community>=0.3.0
 langchain-text-splitters>=0.3.0
 langchain-chroma>=0.1.0
 chromadb>=0.5.0
+
+# LangGraph (与 LangChain 共存)
+langgraph>=0.2.0
+
 dashscope>=1.20.0
 
 # Milvus Lite 向量数据库

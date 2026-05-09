@@ -6,7 +6,7 @@ MCP 服务模块
 import asyncio
 from typing import List, Any, Optional
 
-from langchain.tools import StructuredTool
+from langchain_core.tools import StructuredTool
 from mcp.client.session import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
