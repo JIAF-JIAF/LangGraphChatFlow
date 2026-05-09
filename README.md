@@ -1,6 +1,6 @@
 # 智能客服系统
 
-基于 AI 的智能客服系统，采用前后端分离架构，支持知识库检索（RAG）、工具调用和多轮对话。系统已迁移至 **MCP（Model Context Protocol）** 架构，支持工具的独立部署和多 Agent 共享调用。
+基于 AI 的智能客服系统，采用前后端分离架构，支持知识库检索（RAG）、工具调用和多轮对话。系统已迁移至 **LangGraph** 架构，支持状态管理和工作流编排。
 
 ## 特色功能
 
@@ -8,7 +8,7 @@
 - **多知识库支持**: 支持多个独立知识库（产品文档、政策文件等），智能路由选择
 - **模块化 RAG 框架**: 检索增强生成技术，支持多种索引器、检索器和生成策略组合
 - **智能路由**: 基于 LLM 的智能路由器，自动判断是否需要检索及选择哪个知识库
-- **重排序检索**: 使用 Cross-Encoder 模型对检索结果进行重排序，提高准确性
+- **查询扩展**: 使用 LLM 扩展用户查询，生成多个相关查询词提高召回率
 - **上下文管理**: 独立会话管理，支持多轮对话和上下文记忆
 - **工具调用**: AI 自动判断并调用外部工具（天气查询、天气推荐、表单提交），支持链式调用
 - **MCP 架构**: 工具独立部署，支持多个 Agent 共享调用
@@ -16,6 +16,7 @@
 - **FewShot 示例学习**: 基于 LengthBasedExampleSelector 的动态示例选择
 - **前后端分离**: React + Vite 前端 + Flask 后端
 - **模块化设计**: 清晰的后端架构，易于扩展
+- **LangGraph 集成**: 基于状态图的工作流编排，支持持久化检查点
 
 ## 项目结构
 
@@ -27,8 +28,17 @@ chart-flow-longchain/
 │   ├── modules/               # 核心功能模块
 │   │   ├── __init__.py       # 模块包初始化
 │   │   ├── ai_client.py       # AI 客户端（兼容 OpenAI SDK）
-│   │   ├── assistant.py       # AI 助手/Agent
-│   │   ├── rag/               # 模块化 RAG 框架
+│   │   ├── assistant.py       # AI 助手/Agent（旧版）
+│   │   ├── langgraph/         # LangGraph 模块（新版）
+│   │   │   ├── __init__.py
+│   │   │   ├── agent.py       # LangGraph Agent（状态图定义）
+│   │   │   ├── rag.py         # RAG 业务逻辑
+│   │   │   ├── state.py       # 状态定义
+│   │   │   └── checkpoint/    # 检查点存储
+│   │   │       ├── __init__.py
+│   │   │       ├── base.py
+│   │   │       └── memory.py
+│   │   ├── rag/               # 模块化 RAG 框架（兼容层）
 │   │   │   ├── __init__.py
 │   │   │   ├── rag_chain.py   # RAG 链核心
 │   │   │   ├── indexer/       # 索引模块
@@ -59,12 +69,6 @@ chart-flow-longchain/
 │   │   │   ├── text_loader.py
 │   │   │   ├── pdf_loader.py
 │   │   │   └── docx_loader.py   # 支持多种文档格式加载
-│   │   ├── vector_stores/     # 向量存储（兼容旧接口）
-│   │   │   ├── __init__.py
-│   │   │   ├── base_vector_store.py  # 向量存储基类（含工具方法）
-│   │   │   ├── chroma_store.py       # Chroma 实现
-│   │   │   ├── milvus_store.py       # Milvus 实现
-│   │   │   └── store_factory.py      # 存储工厂
 │   │   ├── prompt/            # Prompt 模板管理
 │   │   │   └── __init__.py    # 包含 FewShot 和 LengthBasedExampleSelector
 │   │   └── rate_limit/        # 限流模块
@@ -89,7 +93,7 @@ chart-flow-longchain/
 │   │   ├── default/          # 默认知识库（产品文档等）
 │   │   └── politics/         # 政策文档知识库
 │   └── db/                    # 向量数据库存储目录
-│
+
 ├── frontend/                   # React 前端 (Vite)
 │   ├── src/
 │   │   ├── components/
@@ -103,6 +107,49 @@ chart-flow-longchain/
 └── .gitignore
 ```
 
+## LangGraph 架构
+
+系统已迁移至 LangGraph 架构，实现状态管理和工作流编排。
+
+### 架构设计原则
+
+1. **分离图定义与业务逻辑**: 将状态图定义与具体业务逻辑分离，提升可维护性
+   - `LangGraphAgent` (agent.py): 负责定义状态图结构（节点、边、路由）
+   - `RAGWorkflow` (rag.py): 负责实现具体业务功能（检索、生成等）
+
+2. **状态持久化**: 通过检查点（Checkpoint）机制实现会话状态的持久化存储
+
+3. **工作流编排**: 支持多节点路由、条件分支、循环等复杂工作流
+
+### 状态图结构
+
+```
+START → router → ┌── 需要检索 ──→ retrieve → generate → call_model → END
+                 │
+                 └── 不需要检索 ──→ call_model → END
+```
+
+### 核心节点
+
+| 节点 | 职责 | 说明 |
+|------|------|------|
+| router | 智能路由 | 判断是否需要检索、选择知识库 |
+| retrieve | 文档检索 | 从向量数据库检索相关文档（支持查询扩展） |
+| generate | 生成回答 | 基于检索文档生成 RAG 结果 |
+| call_model | 模型调用 | 调用 LLM 生成最终回答，更新对话历史 |
+
+### 状态定义
+
+```python
+class AgentState(TypedDict):
+    query: str                    # 用户查询
+    session_id: str               # 会话 ID
+    chat_history: List[BaseMessage] # 对话历史（统一管理）
+    need_retrieve: bool           # 是否需要检索
+    documents: List[Document]     # 检索到的文档
+    answer: str                   # 生成的回答
+```
+
 ## 模块化 RAG 框架
 
 系统采用模块化 RAG 架构，将 RAG 流程拆分为可插拔的独立模块，支持自由组合和扩展。
@@ -111,13 +158,13 @@ chart-flow-longchain/
 
 ```
 RAG 流程:
-用户提问 → 智能路由 → 选择知识库 → 检索文档 → 重排序 → 生成回答 → 返回结果
-           ↓           ↓           ↓          ↓         ↓
-         Router    Knowledge    Retriever  Rerank   Generator
-           ↓           ↓           ↓          ↓         ↓
-       LLMRouter   Multi KB    SimpleVector  BGE      StuffGenerator
-                                    ↓         ↓       MapReduceGenerator
-                              Chroma/Milvus  Cross-Encoder
+用户提问 → 智能路由 → 选择知识库 → 检索文档（含查询扩展）→ 生成回答 → 返回结果
+           ↓           ↓           ↓                  ↓         ↓
+         Router    Knowledge    Retriever          Generator
+           ↓           ↓           ↓                  ↓
+       LLMRouter   Multi KB    SimpleVector      BaseGenerator
+                                    ↓
+                              Chroma/Milvus
 ```
 
 ### 核心模块
@@ -147,71 +194,15 @@ LLMRouter 使用大语言模型分析用户问题，实现：
 2. **选择知识库**：根据问题领域选择合适的知识库
 3. **选择检索策略**：根据问题复杂度调整检索参数
 
-### 重排序检索
+### 查询扩展
 
-RerankingRetriever 使用 Cross-Encoder 模型（默认 `BAAI/bge-reranker-base`）对检索结果进行重排序：
+RAGWorkflow 支持查询扩展功能，通过 LLM 生成多个相关查询词：
 
-1. 先检索较多候选文档（如 top-10）
-2. 使用 Cross-Encoder 模型对每个文档评分
-3. 按评分排序后返回前 N 篇（如 top-3）
-
-**配置方式**：
-```python
-rag_chain = RAGChain(config={
-    "retriever": {
-        "use_reranking": True,
-        "reranking": {
-            "rerank_top_k": 3,        # 重排序后返回的文档数
-            "retrieve_top_k": 10,     # 重排序前检索的候选数
-            "model_name": "BAAI/bge-reranker-base"
-        }
-    }
-})
-```
-
-### 使用方式
-
-```python
-from modules.rag import RAGChain
-
-# 创建 RAG 链
-rag_chain = RAGChain()
-
-# 初始化默认模块（Chroma + SimpleVector + Stuff）
-rag_chain.init_default_modules(ai_client)
-
-# 构建知识库索引
-rag_chain.build_index("knowledge_base")
-
-# 执行检索
-documents = rag_chain.retrieve("用户问题")
-
-# 生成回答
-answer = rag_chain.generate("用户问题", documents, session_id)
-```
-
-### 自定义模块组合
-
-```python
-from modules.rag import (
-    RAGChain, ChromaIndexer, SimpleVectorRetriever,
-    StuffGenerator, ConversationMemory, SimpleRouter
-)
-
-# 创建自定义配置的 RAG 链
-rag_chain = RAGChain(config={
-    "indexer": {"persist_directory": "db/chroma"},
-    "retriever": {"retrieval_kwargs": {"k": 5}},
-    "generator": {"temperature": 0.7}
-})
-
-# 手动设置各模块
-rag_chain.set_indexer(ChromaIndexer(ai_client))
-rag_chain.set_retriever(SimpleVectorRetriever())
-rag_chain.set_generator(StuffGenerator(llm_client))
-rag_chain.set_memory(ConversationMemory())
-rag_chain.set_router(SimpleRouter())
-```
+1. 接收用户原始查询
+2. 使用 LLM 生成 3-5 个相关查询词
+3. 对每个查询词执行检索
+4. 合并结果并去重
+5. 返回最终检索结果
 
 ## 快速开始
 
@@ -221,7 +212,6 @@ rag_chain.set_router(SimpleRouter())
 - Node.js >= 16
 - npm 或 yarn
 - 阿里云百炼 API 密钥（或 OpenAI API）
-
 
 ### 后端启动
 
@@ -317,7 +307,7 @@ APP_PORT = 5000
 ```json
 {
   "status": "ready",
-  "message": "客服系统已就绪 (LangChain)",
+  "message": "客服系统已就绪 (LangGraph)",
   "model": "qwen-plus",
   "knowledge_base": true
 }
@@ -374,7 +364,7 @@ MCP（Model Context Protocol）服务器负责管理和提供工具服务：
 │              应用服务器 (5000端口)                    │
 │  ┌─────────────┐    ┌─────────────┐                │
 │  │   Agent     │←───│MCPToolService│                │
-│  │             │    │   (客户端)   │                │
+│  │ (LangGraph) │    │   (客户端)   │                │
 │  └─────────────┘    └─────────────┘                │
 └─────────────────────────────────────────────────────┘
 ```
@@ -480,6 +470,7 @@ BaseRouter.should_retrieve() # 返回 True
 - LangChain >= 0.3.0 - Agent 和工具框架
 - LangChain Core >= 0.3.0 - 核心组件
 - LangChain Community >= 0.3.0 - 社区组件
+- LangGraph >= 0.1.0 - 状态图工作流框架
 - langchain-chroma >= 0.1.0 - Chroma 集成
 - chromadb >= 0.5.0 - 向量数据库
 - pymilvus >= 2.4.0 - Milvus 支持（可选）
@@ -511,7 +502,9 @@ BaseRouter.should_retrieve() # 返回 True
 - [x] 限流模块集成
 - [x] 多知识库支持
 - [x] 智能路由（LLMRouter）
-- [x] 重排序检索（Cross-Encoder）
+- [x] 查询扩展功能
+- [x] LangGraph 架构迁移
+- [x] 状态持久化检查点
 - [ ] 数据库替代 JSON 存储
 - [ ] API 安全验证
 - [ ] Docker 容器化部署
