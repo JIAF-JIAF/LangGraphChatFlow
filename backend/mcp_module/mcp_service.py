@@ -1,0 +1,121 @@
+"""
+MCP 服务模块
+封装 MCP 工具获取逻辑，支持从单个或多个远程 MCP 服务器获取工具
+"""
+
+import asyncio
+from typing import List, Any, Optional
+
+from langchain.tools import StructuredTool
+from mcp.client.session import ClientSession
+from mcp.client.streamable_http import streamable_http_client
+
+import mcp_module.mcp_client as mcp_client
+import mcp_module.logger as logger
+import mcp_module.config as config
+
+
+class MCPToolService:
+    """MCP 工具服务类"""
+
+    @staticmethod
+    def get_tools(server_url: Optional[str] = None) -> List[Any]:
+        """
+        从 MCP 服务器获取工具列表（兼容旧版接口）
+        
+        Args:
+            server_url: MCP 服务器地址，若为 None 则从配置的所有启用服务器获取工具
+        """
+        if server_url:
+            # 兼容旧版：从指定单个服务器获取工具
+            return MCPToolService._get_tools_from_server(server_url)
+        else:
+            # 新版：从配置的所有启用服务器获取工具
+            return MCPToolService.get_tools_from_all_servers()
+
+    @staticmethod
+    def get_tools_from_all_servers() -> List[Any]:
+        """
+        从配置文件中所有启用的 MCP 服务器获取工具列表
+        
+        Returns:
+            合并后的工具列表（来自所有启用的 MCP 服务器）
+        """
+        all_tools = []
+        
+        for server_config in config.MCP_SERVERS:
+            if not server_config.get('enabled', True):
+                logger.logger.info(f"MCP 服务器 [{server_config['name']}] 已禁用，跳过")
+                continue
+            
+            server_url = server_config['url']
+            server_name = server_config['name']
+            
+            try:
+                logger.logger.info(f"连接 MCP 服务器 [{server_name}]: {server_url}")
+                tools = MCPToolService._get_tools_from_server(server_url)
+                logger.logger.info(f"从 MCP 服务器 [{server_name}] 获取到 {len(tools)} 个工具")
+                all_tools.extend(tools)
+            except Exception as e:
+                logger.logger.error(f"连接 MCP 服务器 [{server_name}] 失败: {str(e)}")
+        
+        logger.logger.info(f"共获取到 {len(all_tools)} 个工具（来自 {len([s for s in config.MCP_SERVERS if s.get('enabled')])} 个服务器）")
+        return all_tools
+
+    @staticmethod
+    def _get_tools_from_server(server_url: str) -> List[Any]:
+        """
+        从单个 MCP 服务器获取工具列表
+        
+        Args:
+            server_url: MCP 服务器地址
+        """
+        mcp_tools = asyncio.run(mcp_client.get_tools_from_server(server_url))
+        return MCPToolService._create_callable_tools(mcp_tools, server_url)
+
+    @staticmethod
+    def _create_callable_tools(mcp_tools: List[Any], server_url: str) -> List[StructuredTool]:
+        """将 MCP 工具转换为 LangChain 可调用的工具对象"""
+        tools = []
+        
+        for mcp_tool in mcp_tools:
+            name = getattr(mcp_tool, 'name', 'unknown')
+            description = getattr(mcp_tool, 'description', '').strip()
+            
+            # 使用默认参数捕获当前迭代的值，避免闭包变量问题
+            def create_tool_call(tool_name: str = name, url: str = server_url):
+                def call_tool(**kwargs):
+                    # 处理参数格式：可能是 {'kwargs': {...}} 或直接 {...}
+                    args = kwargs.get('kwargs', kwargs)
+                    
+                    async def _call():
+                        async with streamable_http_client(url) as (read_stream, write_stream, get_session_id):
+                            async with ClientSession(
+                                read_stream=read_stream,
+                                write_stream=write_stream,
+                                client_info={"name": "chartflow-client", "version": "1.0.0"}
+                            ) as session:
+                                await session.initialize()
+                                result = await session.call_tool(tool_name, args)
+                                return result
+                    
+                    return asyncio.run(_call())
+                
+                return call_tool
+            
+            tool_func = create_tool_call()
+            tool_func.__name__ = name
+            tool_func.__doc__ = description
+            
+            tool = StructuredTool.from_function(
+                func=tool_func,
+                name=name,
+                description=description
+            )
+            
+            tools.append(tool)
+            
+        return tools
+
+
+__all__ = ['MCPToolService']

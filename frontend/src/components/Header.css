@@ -1,0 +1,24 @@
+.header {
+  height: 60px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.customer-service-icon {
+  font-size: 28px;
+}
+
+.customer-service-name {
+  font-size: 20px;
+  font-weight: 600;
+}
