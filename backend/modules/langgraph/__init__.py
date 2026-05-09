@@ -1,11 +1,11 @@
 """
 LangGraph 模块
 
-提供基于 LangGraph 的工作流编排能力，与 LangChain 模块共存。
+提供基于 LangGraph 的工作流编排能力
 """
 
-from .state import AgentState, RAGState
-from .agent import LangGraphAgent
+from .state import AgentState
 from .rag import RAGWorkflow
+from .agent import LangGraphAgent
 
-__all__ = ['AgentState', 'RAGState', 'LangGraphAgent', 'RAGWorkflow']
+__all__ = ['AgentState', 'RAGWorkflow', 'LangGraphAgent']

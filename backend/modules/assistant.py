@@ -6,7 +6,7 @@ LangChain Agent 模块
 from typing import Optional, Dict, Any, List
 from langchain_core.chat_history import InMemoryChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
-from langchain.agents import create_tool_calling_agent, AgentExecutor
+from langchain_classic.agents import create_tool_calling_agent, AgentExecutor
 
 
 class Agent:
@@ -21,7 +21,6 @@ class Agent:
             options = {}
 
         self.llm_client = options.get('aiClient')
-        self.rag_chain = options.get('ragChain')  # 使用模块化 RAG 链
         self._tools = options.get('tools', [])
         self.prompt = options.get('prompt')
 
@@ -49,13 +48,7 @@ class Agent:
         使用 create_tool_calling_agent 创建 agent，
         并配置 RunnableWithMessageHistory 以支持多会话对话历史管理。
         """
-        # 获取检索知识工具（使用模块化 RAGChain）
-        retrieve_tool = self.rag_chain.get_retrieve_knowledge_tool()
-
-        tools = []
-        if retrieve_tool:
-            tools.append(retrieve_tool)
-        tools.extend(self._tools)
+        tools = self._tools.copy()
 
         self._agent = create_tool_calling_agent(
             llm=self.llm_client.chat,

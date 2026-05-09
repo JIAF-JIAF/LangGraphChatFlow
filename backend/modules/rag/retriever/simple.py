@@ -55,7 +55,7 @@ class SimpleVectorRetriever(BaseRetriever):
         """
         if not self._retriever:
             return []
-        return self._retriever.get_relevant_documents(query)
+        return self._retriever.invoke(query)
 
     def get_relevant_documents(self, query: str) -> List[Document]:
         """
