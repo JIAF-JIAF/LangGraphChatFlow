@@ -18,7 +18,7 @@ from langgraph.graph import StateGraph, END, START
 from langchain_core.messages import HumanMessage, AIMessage
 
 from .state import AgentState
-from .checkpoint import MemorySaver
+from modules.checkpoint import MemorySaver
 
 
 class LangGraphAgent:

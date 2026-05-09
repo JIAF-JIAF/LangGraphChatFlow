@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 
 from modules.ai_client import AIClient
 from modules.langgraph import LangGraphAgent, RAGWorkflow
-from modules.langgraph.checkpoint import MemorySaver
+from modules.checkpoint import MemorySaver
 from modules.assistant import Agent as LangChainAgent
 from modules.prompt import create_few_shot_prompt
 from modules.rate_limit import RateLimiter
