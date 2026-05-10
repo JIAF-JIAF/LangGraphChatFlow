@@ -32,7 +32,9 @@ chart-flow-longchain/
 │   │   ├── checkpoint/        # 检查点存储（独立模块）
 │   │   │   ├── __init__.py
 │   │   │   ├── base.py
-│   │   │   └── memory.py
+│   │   │   ├── memory.py
+│   │   │   ├── redis.py
+│   │   │   └── factory.py
 │   │   ├── langgraph/         # LangGraph 模块（新版）
 │   │   │   ├── __init__.py
 │   │   │   ├── agent.py       # LangGraph Agent（状态图定义）
@@ -262,23 +264,47 @@ npm run dev
 
 ## 配置说明
 
-### config.json
+### .env 环境变量配置
 
-```json
-{
-  "api_key": "your_api_key",
-  "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-  "model": "qwen-plus",
-  "embedding_model": "text-embedding-v3"
-}
+```env
+# AI API 配置
+API_KEY=your_api_key
+BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+MODEL=qwen3.6-flash
+EMBEDDING_MODEL=text-embedding-v3
+
+# 向量数据库配置
+VECTOR_STORE_TYPE=chroma
+VECTOR_STORE_PERSIST_DIRECTORY=db/chroma
+VECTOR_STORE_COLLECTION_NAME=knowledge_base
+
+# 检查点存储配置
+CHECKPOINT_STORAGE=memory
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_DB=0
+REDIS_PASSWORD=
+
+# 服务器配置
+SERVER_HOST=0.0.0.0
+SERVER_PORT=5000
+
+# MCP 配置
+MCP_HOST=0.0.0.0
+MCP_PORT=8080
 ```
 
 | 配置项 | 说明 |
 |--------|------|
-| api_key | 阿里云百炼或 OpenAI API 密钥 |
-| base_url | API 基础地址 |
-| model | 对话模型名称 |
-| embedding_model | 向量化模型名称 |
+| API_KEY | 阿里云百炼或 OpenAI API 密钥 |
+| BASE_URL | API 基础地址 |
+| MODEL | 对话模型名称 |
+| EMBEDDING_MODEL | 向量化模型名称 |
+| CHECKPOINT_STORAGE | 检查点存储类型：`memory`（内存）或 `redis`（Redis持久化） |
+| REDIS_HOST | Redis 服务器地址（当 CHECKPOINT_STORAGE=redis 时生效） |
+| REDIS_PORT | Redis 端口号 |
+| REDIS_DB | Redis 数据库编号 |
+| REDIS_PASSWORD | Redis 密码（可选） |
 
 ### MCP 配置
 
@@ -473,6 +499,7 @@ BaseRouter.should_retrieve() # 返回 True
 - langchain-chroma >= 0.1.0 - Chroma 集成
 - chromadb >= 0.5.0 - 向量数据库
 - pymilvus >= 2.4.0 - Milvus 支持（可选）
+- redis >= 5.0.0 - Redis 支持（可选，用于检查点持久化）
 - dashscope >= 1.20.0 - 阿里云百炼支持（可选）
 - MCP - Model Context Protocol（工具服务协议）
 
@@ -504,6 +531,44 @@ BaseRouter.should_retrieve() # 返回 True
 - [x] 查询扩展功能
 - [x] LangGraph 架构迁移
 - [x] 状态持久化检查点
+
+### 检查点存储
+
+系统支持两种检查点存储方式，通过 `CHECKPOINT_STORAGE` 环境变量配置：
+
+**1. MemorySaver（内存存储）**
+- 默认配置，适合开发和测试环境
+- 数据存储在内存中，服务重启后数据丢失
+- 配置：`CHECKPOINT_STORAGE=memory`
+
+**2. RedisSaver（Redis 持久化存储）**
+- 适合生产环境，支持会话持久化
+- 需要提前启动 Redis 服务
+- 配置：`CHECKPOINT_STORAGE=redis`
+
+**Redis 启动方式：**
+
+```bash
+# 使用 Docker（推荐）
+docker run -d -p 6379:6379 redis
+
+# 或本地安装的 Redis
+redis-server
+```
+
+**检查点工厂模式：**
+
+系统采用工厂模式管理检查点存储，支持动态注册和扩展：
+
+```python
+# 注册存储实现
+CheckpointFactory.register("memory", MemorySaver)
+CheckpointFactory.register("redis", RedisSaver)
+
+# 构建实例
+checkpointer = CheckpointFactory.build(name="memory")
+```
+
 - [ ] 数据库替代 JSON 存储
 - [ ] API 安全验证
 - [ ] Docker 容器化部署
