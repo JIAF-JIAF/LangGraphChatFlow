@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 
 from modules.ai_client import AIClient
 from modules.langgraph import LangGraphAgent, RAGWorkflow
-from modules.checkpoint import MemorySaver
+from modules.checkpoint import CheckpointFactory
 from modules.assistant import Agent as LangChainAgent
 from modules.prompt import create_few_shot_prompt
 from modules.rate_limit import RateLimiter
@@ -83,10 +83,12 @@ def init_system():
 
     print("\n[4/4] 初始化 LangGraph 调度层...")
     try:
-        # 根据配置选择 checkpointer
-        # 生产环境可以替换为 RedisSaver 或其他持久化方案
-        checkpointer = MemorySaver()
-        
+        # CHECKPOINT_STORAGE: "redis" 或 "memory"（默认）
+        checkpoint_storage = os.getenv("CHECKPOINT_STORAGE", "memory").lower()
+        print(f"  使用 {'Redis 持久化' if checkpoint_storage == 'redis' else '内存'}存储")
+
+        checkpointer = CheckpointFactory.build(name=checkpoint_storage)
+
         assistant_instance = LangGraphAgent(
             agent=langchain_agent,
             rag_workflow=rag_workflow,

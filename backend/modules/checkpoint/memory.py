@@ -5,6 +5,7 @@
 注意：重启服务后数据会丢失，生产环境建议使用 Redis 或数据库存储。
 """
 
+import os
 from typing import Optional, Dict, List, Any, Iterator, Tuple, Sequence
 from langgraph.checkpoint.base import (
     Checkpoint,
@@ -27,7 +28,7 @@ class MemorySaver(BaseCheckpointSaver):
     - 适合开发测试环境
 
     Example:
-        >>> from modules.langgraph.checkpoint import MemorySaver
+        >>> from modules.checkpoint import MemorySaver
         >>> checkpointer = MemorySaver()
     """
 
@@ -172,3 +173,17 @@ class MemorySaver(BaseCheckpointSaver):
             "total_threads": len(self._store),
             "total_checkpoints": sum(len(hist) for hist in self._history.values())
         }
+
+    @classmethod
+    def build(cls, **kwargs) -> "MemorySaver":
+        """
+        构建 MemorySaver 实例
+
+        Returns:
+            MemorySaver 实例
+        """
+        return cls()
+
+
+from modules.checkpoint.factory import CheckpointFactory
+CheckpointFactory.register("memory", MemorySaver)

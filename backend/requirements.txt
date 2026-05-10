@@ -29,3 +29,6 @@ mcp>=1.0.0
 
 # 重排序模型
 sentence-transformers>=2.2.0
+
+# Redis 支持
+redis>=5.0.0
