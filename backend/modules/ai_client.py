@@ -63,7 +63,12 @@ class LLMClient:
 
     @property
     def chat(self):
-        """获取 ChatOpenAI 客户端。"""
+        """
+        获取 ChatOpenAI 客户端
+
+        Returns:
+            ChatOpenAI 客户端实例
+        """
         if self._client is None:
             raise RuntimeError("LLM client 未初始化")
         return self._client
@@ -76,7 +81,8 @@ class LLMClient:
         return self._embedding_client
 
     def create_embedding(self, text: str) -> list[float]:
-        """创建文本嵌入向量。
+        """
+        创建文本嵌入向量
 
         Args:
             text: 要嵌入的文本内容

@@ -11,6 +11,8 @@
 - **查询扩展**: 使用 LLM 扩展用户查询，生成多个相关查询词提高召回率
 - **上下文管理**: 独立会话管理，支持多轮对话和上下文记忆
 - **工具调用**: AI 自动判断并调用外部工具（天气查询、天气推荐、表单提交），支持链式调用
+- **钉钉集成**: 支持钉钉日程管理（创建、查询、删除日程）和待办事项
+- **MCP 多服务器**: 支持从多个 MCP 服务器获取工具，实现工具服务的分布式部署
 - **MCP 架构**: 工具独立部署，支持多个 Agent 共享调用
 - **Streamable HTTP**: 基于 HTTP 的流式传输协议，支持实时响应
 - **情绪感知**: 基于关键词规则的情绪分析（default、upbeat、angry、cheerful、depressed、friendly），动态更新 Prompt
@@ -88,12 +90,18 @@ chart-flow-longchain/
 │   │   ├── mcp_client.py       # MCP 客户端
 │   │   ├── mcp_service.py      # MCP 服务封装
 │   │   ├── start.py            # MCP 服务器启动脚本
-│   │   └── tools/              # 工具插件目录
-│   │       ├── __init__.py
-│   │       ├── registry.py     # 工具注册中心
-│   │       ├── weather_plugin.py
-│   │       ├── weather_recommend_plugin.py
-│   │       └── submit_form_plugin.py
+│   │   ├── tools/              # 工具插件目录
+│   │   │   ├── __init__.py
+│   │   │   ├── registry.py     # 工具注册中心
+│   │   │   ├── weather_plugin.py
+│   │   │   ├── weather_recommend_plugin.py
+│   │   │   ├── submit_form_plugin.py
+│   │   │   └── dingtalk/       # 钉钉工具集
+│   │   │       ├── dingtalk_client.py
+│   │   │       ├── dingtalk_schedule_create_plugin.py
+│   │   │       ├── dingtalk_schedule_query_plugin.py
+│   │   │       ├── dingtalk_schedule_delete_plugin.py
+│   │   │       └── dingtalk_todo_plugin.py
 │   ├── knowledge_base/        # 知识库文档目录
 │   │   ├── default/          # 默认知识库（产品文档等）
 │   │   └── politics/         # 政策文档知识库
@@ -338,6 +346,11 @@ SERVER_PORT=5000
 # MCP 配置
 MCP_HOST=0.0.0.0
 MCP_PORT=8080
+MCP_SERVERS=[{"name":"default","url":"http://localhost:8080/mcp"}]
+
+# 钉钉配置（可选）
+DINGTALK_CLIENT_ID=your_app_key
+DINGTALK_CLIENT_SECRET=your_app_secret
 ```
 
 | 配置项 | 说明 |
@@ -351,6 +364,7 @@ MCP_PORT=8080
 | REDIS_PORT | Redis 端口号 |
 | REDIS_DB | Redis 数据库编号 |
 | REDIS_PASSWORD | Redis 密码（可选） |
+| MCP_SERVERS | MCP 服务器配置列表，支持多服务器配置 |
 
 ### MCP 配置
 
@@ -441,6 +455,21 @@ MCP（Model Context Protocol）服务器负责管理和提供工具服务：
 └─────────────────────────────────────────────────────┘
 ```
 
+### MCP 多服务器支持
+
+系统支持从多个 MCP 服务器获取工具，实现工具服务的分布式部署：
+
+```python
+# config.py
+MCP_SERVERS = [
+    {"name": "default", "url": "http://localhost:8080/mcp"},
+    {"name": "dingtalk", "url": "http://localhost:8081/mcp"},
+    {"name": "custom", "url": "http://custom-server:8080/mcp"}
+]
+```
+
+`MCPToolService` 会自动连接所有配置的服务器并合并工具列表。
+
 ### 工具注册机制
 
 工具通过装饰器注册到全局注册表：
@@ -465,6 +494,40 @@ def get_weather(city: str) -> str:
     # 工具实现...
 ```
 
+## 钉钉集成
+
+系统支持钉钉工具调用，包括日程管理和待办事项功能。
+
+### 钉钉工具列表
+
+| 工具名称 | 功能 | 参数 |
+|---------|------|------|
+| `create_dingtalk_schedule` | 创建日程 | summary(标题), isAllDay(是否全天), start/end datetime 等 |
+| `query_dingtalk_schedule` | 查询日程 | schedule_id 或查询条件 |
+| `delete_dingtalk_schedule` | 删除日程 | schedule_id |
+| `create_dingtalk_todo` | 创建待办 | summary(标题), due_date(截止日期) |
+
+### 钉钉配置
+
+在 `.env` 文件中添加钉钉配置：
+
+```env
+DINGTALK_CLIENT_ID=your_app_key
+DINGTALK_CLIENT_SECRET=your_app_secret
+```
+
+### 日程参数说明
+
+创建日程时需要注意全天和非全天日程的参数差异：
+
+| 参数 | 全天日程 | 非全天日程 |
+|------|---------|-----------|
+| start_date | ✅ 必填 | ❌ 留空 |
+| start_datetime | ❌ 留空 | ✅ 必填 |
+| end_date | ✅ 必填 | ❌ 留空 |
+| end_datetime | ❌ 留空 | ✅ 必填 |
+| isAllDay | true | false |
+
 ## 使用流程
 
 1. **准备知识库**: 在 `backend/knowledge_base/` 目录添加文档（支持 .txt、.pdf、.docx）
@@ -473,7 +536,8 @@ def get_weather(city: str) -> str:
 4. **开始对话**: 访问前端地址，与智能客服对话
 5. **RAG 增强**: 系统自动从知识库检索相关内容，增强 AI 回答
 6. **工具调用**: AI 通过 MCP 服务器调用天气查询、推荐或表单提交等工具
-7. **FewShot 学习**: 系统使用默认示例对话，也可自定义示例
+7. **钉钉功能**: AI 可以帮用户创建、查询、删除钉钉日程和待办事项
+8. **FewShot 学习**: 系统使用默认示例对话，也可自定义示例
 
 ## 自定义扩展
 

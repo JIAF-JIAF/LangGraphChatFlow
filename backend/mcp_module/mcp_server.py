@@ -28,11 +28,22 @@ def register_from_registry() -> None:
         logger.logger.info(f"注册工具: {tool_def.name}")
 
 def get_server() -> FastMCP:
-    """获取 MCP 服务器实例"""
+    """
+    获取 MCP 服务器实例
+
+    Returns:
+        FastMCP 服务器实例
+    """
     return _server
 
 def run_server(host: str = config.MCP_HOST, port: int = config.MCP_PORT) -> None:
-    """启动 MCP 服务器（使用 Streamable HTTP 协议）"""
+    """
+    启动 MCP 服务器（使用 Streamable HTTP 协议）
+
+    Args:
+        host: 服务器主机地址
+        port: 服务器端口号
+    """
     logger.logger.info(f"启动 MCP 服务器 (streamable-http): http://{host}:{port}{config.MCP_PATH}")
     _server.run(transport="streamable-http")
 

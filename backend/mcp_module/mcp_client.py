@@ -12,7 +12,15 @@ import mcp_module.config as config
 
 
 async def get_tools_from_server(url: str = config.MCP_URL):
-    """从 MCP 服务器获取工具列表"""
+    """
+    从 MCP 服务器获取工具列表
+
+    Args:
+        url: MCP 服务器地址，默认为 config.MCP_URL
+
+    Returns:
+        工具列表
+    """
     async with streamable_http_client(url) as (read_stream, write_stream, get_session_id):
         async with ClientSession(
             read_stream=read_stream,

@@ -42,9 +42,20 @@ class DingTalkClient:
         except requests.exceptions.RequestException as e:
             raise RuntimeError(f"获取访问令牌失败: {str(e)}")
     
-    def request(self, method: str, endpoint: str, params: Dict[str, Any] = None, 
+    def request(self, method: str, endpoint: str, params: Dict[str, Any] = None,
                data: Dict[str, Any] = None) -> Dict[str, Any]:
-        """发送钉钉API请求"""
+        """
+        发送钉钉 API 请求
+
+        Args:
+            method: HTTP 方法 (GET/POST/PUT/DELETE)
+            endpoint: API 端点路径
+            params: URL 查询参数
+            data: 请求体数据
+
+        Returns:
+            API 响应结果字典
+        """
         try:
             access_token = self.get_access_token()
         except Exception as e:
@@ -82,14 +93,15 @@ class DingTalkClient:
             return {'errcode': -1, 'errmsg': f'请求异常: {str(e)}'}
 
     def get_union_id(self, access_token: str, userid: str) -> Optional[str]:
-        """获取用户unionId
-        
+        """
+        获取用户 unionId
+
         Args:
             access_token: 钉钉访问令牌
-            userid: 用户ID
-        
+            userid: 用户 ID
+
         Returns:
-            用户的unionId，如果获取失败返回None
+            用户的 unionId，获取失败返回 None
         """
         info(f'[钉钉API] 正在获取用户unionId，userid={userid}')
         

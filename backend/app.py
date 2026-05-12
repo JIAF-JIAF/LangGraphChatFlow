@@ -127,7 +127,7 @@ def start():
         status = {
             "status": "ready",
             "message": "客服系统已就绪 (LangGraph 版本)",
-            "model": "qwen3.6-flash",
+            "model": "qwen3.5-flash",
             "features": ["feeling_detection", "RAG", "tool_calling"]
         }
         return jsonify(status)
