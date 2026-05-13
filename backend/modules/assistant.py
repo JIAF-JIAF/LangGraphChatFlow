@@ -12,6 +12,7 @@ LangChain Agent 模块
 - 执行用户输入并返回结果
 """
 
+import os
 from typing import Optional, Dict, Any, List
 from langchain.agents import create_tool_calling_agent, AgentExecutor
 
@@ -87,7 +88,7 @@ class Agent:
         self._feeling = feeling
         print(f"[Agent] 情绪状态已设置: {feeling}")
 
-    def invoke(self, input: str, session_id: str = "default", chat_history: List = None, feeling: Dict[str, Any] = None) -> Dict[str, Any]:
+    def invoke(self, input: str, session_id: str = "default", chat_history: List = None, feeling: Dict[str, Any] = None, uid: Optional[str] = None) -> Dict[str, Any]:
         """
         执行 Agent 处理用户输入
         
@@ -96,6 +97,7 @@ class Agent:
             session_id: 会话 ID（当前不使用，由上层 LangGraph 管理）
             chat_history: 对话历史列表，由 LangGraph 传入
             feeling: 情绪对象，格式: {"feeling": str, "score": int}
+            uid: 用户 ID（用于钉钉等外部工具调用）
             
         Returns:
             包含 answer、intermediate_steps 和 tool_messages 的字典
@@ -103,10 +105,16 @@ class Agent:
         if feeling:
             self._feeling = feeling
 
+        if uid:
+            os.environ['DINGTALK_CURRENT_USER_ID'] = uid
+
         result = self._agent_executor.invoke({
             "input": input,
             "chat_history": chat_history or []
         })
+
+        if uid:
+            os.environ.pop('DINGTALK_CURRENT_USER_ID', None)
 
         return {
             "answer": result.get("output", str(result)),

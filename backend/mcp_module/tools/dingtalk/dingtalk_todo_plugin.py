@@ -59,7 +59,7 @@ def create_dingtalk_todo(subject: str, dueTime: int = None, description: str = N
         access_token = client.get_access_token()
         
         info(f"[工具执行] create_dingtalk_todo - 正在获取用户unionId...")
-        unionId = client.get_union_id(access_token, client.user_id)
+        unionId = client.get_union_id(access_token, client.get_current_user_id())
         
         if not unionId:
             error(f"[工具返回] create_dingtalk_todo - 失败: 未能获取到unionId")

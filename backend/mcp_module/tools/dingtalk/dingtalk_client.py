@@ -18,6 +18,18 @@ class DingTalkClient:
         self.app_secret = os.getenv("DINGTALK_CLIENT_SECRET")
         self.user_id = os.getenv("DINGTALK_USER_ID")
     
+    def get_current_user_id(self) -> str:
+        """
+        获取当前用户 ID
+        
+        优先从环境变量 DINGTALK_CURRENT_USER_ID 获取（运行时动态传入），
+        如果没有则使用配置文件中的 DINGTALK_USER_ID
+        
+        Returns:
+            当前用户 ID
+        """
+        return os.getenv("DINGTALK_CURRENT_USER_ID", self.user_id)
+    
     def get_access_token(self) -> str:
         """获取access_token"""
         if not all([self.app_key, self.app_secret]):

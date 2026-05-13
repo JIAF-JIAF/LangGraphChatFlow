@@ -16,3 +16,4 @@ class AgentState(TypedDict):
     documents: List[Document]  # 检索到的文档
     answer: str  # 生成的回答
     feeling: Dict[str, Any]  # 用户情绪状态 {"feeling": str, "score": int}
+    uid: Optional[str]  # 用户 ID（用于钉钉等外部工具调用）

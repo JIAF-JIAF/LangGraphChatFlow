@@ -214,7 +214,8 @@ class LangGraphAgent:
 
             enhanced_query = self._build_enhanced_query(query, rag_answer)
 
-            result = self._agent.invoke(enhanced_query, None, chat_history, feeling)
+            uid = state.get("uid")
+            result = self._agent.invoke(enhanced_query, None, chat_history, feeling, uid)
             answer = result.get("answer", "")
         else:
             # 如果没有 Agent，直接使用 RAG 结果或返回错误
@@ -314,7 +315,7 @@ class LangGraphAgent:
         self._graph = self._graph.compile(checkpointer=self._checkpointer)
         self._log("LangGraph 状态图构建完成")
 
-    def invoke(self, query: str, session_id: str = "default") -> Dict[str, Any]:
+    def invoke(self, query: str, session_id: str = "default", uid: Optional[str] = None) -> Dict[str, Any]:
         """
         执行 Agent（标准 LangGraph 调用方式）
 
@@ -323,16 +324,22 @@ class LangGraphAgent:
         Args:
             query: 用户查询
             session_id: 会话 ID（用于会话隔离）
+            uid: 用户 ID（用于钉钉等外部工具调用）
 
         Returns:
             包含 answer 和 feeling 的结果
         """
         self._log(f"=== 开始处理请求 ===")
         self._log(f"会话ID: {session_id}")
+        self._log(f"用户ID: {uid}")
         self._log(f"用户查询: {query}")
 
+        initial_state = {"query": query}
+        if uid:
+            initial_state["uid"] = uid
+
         result = self._graph.invoke(
-            {"query": query},
+            initial_state,
             config={"configurable": {"thread_id": session_id}}
         )
 

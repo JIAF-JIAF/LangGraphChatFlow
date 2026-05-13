@@ -75,7 +75,7 @@ def query_dingtalk_schedule(
         
         info(f"[工具执行] query_dingtalk_schedule - 正在获取用户unionId...")
         access_token = client.get_access_token()
-        unionId = client.get_union_id(access_token, client.user_id)
+        unionId = client.get_union_id(access_token, client.get_current_user_id())
         
         if not unionId:
             error(f"[工具返回] query_dingtalk_schedule - 失败: 未能获取到unionId")

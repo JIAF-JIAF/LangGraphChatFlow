@@ -147,8 +147,8 @@ class DingTalkChatbotHandler(ChatbotHandler):
             # 获取会话 ID
             session_id = get_session_id(uid)
 
-            # 调用模型生成回复
-            result = assistant_instance.invoke(user_message, session_id)
+            # 调用模型生成回复（传递 uid）
+            result = assistant_instance.invoke(user_message, session_id, uid)
             reply = result.get("answer", "")
 
             print(f"[钉钉消息] 回复内容: {reply}", flush=True)
