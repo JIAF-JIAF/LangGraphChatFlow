@@ -682,4 +682,108 @@ checkpointer = CheckpointFactory.build(name="memory")
 
 - [ ] 数据库替代 JSON 存储
 - [ ] API 安全验证
-- [ ] Docker 容器化部署
+
+## Docker 容器化部署
+
+系统已支持 Docker 容器化部署，可通过 `docker-compose` 一键启动。
+
+### Docker 部署步骤
+
+```bash
+# 进入后端目录
+cd backend
+
+# 使用 Docker Compose 启动服务
+docker-compose up -d
+```
+
+### Docker Compose 配置
+
+```yaml
+version: '3.8'
+services:
+  backend:
+    build: .
+    ports:
+      - "5000:5000"
+      - "8080:8080"
+    environment:
+      - API_KEY=${API_KEY}
+      - BASE_URL=${BASE_URL}
+      - MODEL=qwen3.5-flash
+      - EMBEDDING_MODEL=text-embedding-v3
+      - CHECKPOINT_STORAGE=memory
+    volumes:
+      - ./knowledge_base:/app/knowledge_base
+      - ./db:/app/db
+    restart: unless-stopped
+```
+
+### 环境变量文件 (.env)
+
+```env
+# AI API 配置
+API_KEY=your_api_key
+BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+```
+
+## 钉钉智能会话助手
+
+系统已完成钉钉智能会话助手的开发和测试验证。
+
+### 功能特性
+
+- **智能问答**: 基于知识库的智能问答服务
+- **日程管理**: 创建、查询、删除钉钉日程
+- **待办事项**: 创建钉钉待办任务
+- **情绪感知**: 根据用户情绪调整回复语气
+
+### 测试验证
+
+钉钉智能会话助手已在钉钉内完成测试验证，测试截图位于 `resources/` 目录：
+
+| 截图文件 | 说明 |
+|---------|------|
+| `qa_test.png` | 智能问答测试 |
+| `schedule_test.png` | 日程创建测试 |
+| `todo_test.png` | 待办创建测试 |
+| `chat_test.png` | 多轮对话测试 |
+
+### 钉钉部署配置
+
+1. 在钉钉开放平台创建企业内部应用
+2. 配置应用密钥（Client ID / Client Secret）
+3. 在 `.env` 文件中配置钉钉参数
+4. 部署服务并配置钉钉机器人回调地址
+
+```env
+# 钉钉配置
+DINGTALK_CLIENT_ID=your_app_key
+DINGTALK_CLIENT_SECRET=your_app_secret
+```
+
+### 测试验证截图
+
+#### 智能问答测试
+
+智能会话助手能够准确回答用户问题，并自动从知识库检索相关信息：
+
+![智能问答测试](resources/qa_test.png)
+
+#### 日程管理测试
+
+成功创建钉钉日程，支持全天和非全天模式：
+
+![日程创建测试](resources/schedule_test.png)
+
+#### 待办事项测试
+
+创建待办任务，支持设置截止日期：
+
+![待办创建测试](resources/todo_test.png)
+
+#### 多轮对话测试
+
+支持上下文保持的多轮对话：
+
+![多轮对话测试](resources/chat_test.png)
