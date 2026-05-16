@@ -15,7 +15,7 @@ from modules.rag.retriever import SimpleVectorRetriever
 from modules.rag.generator import BaseGenerator
 from modules.rag.memory import ConversationMemory
 from modules.rag.router import LLMRouter
-from modules.knowledge_base import kb_manager
+from knowledge_base import kb_manager
 
 
 class RAGWorkflow:

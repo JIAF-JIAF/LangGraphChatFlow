@@ -5,6 +5,7 @@
 ## 特色功能
 
 - **智能知识库**: 基于向量数据库的语义检索，支持 .txt、.pdf、.docx 等文档格式
+- **可视化知识库管理**: 通过前端 UI 动态管理知识库，支持创建、删除知识库，上传文档并自动向量化
 - **多知识库支持**: 支持多个独立知识库（产品文档、政策文件等），智能路由选择
 - **模块化 RAG 框架**: 检索增强生成技术，支持多种索引器、检索器和生成策略组合
 - **智能路由**: 基于 LLM 的智能路由器，自动判断是否需要检索及选择哪个知识库
@@ -27,9 +28,10 @@
 chart-flow-longchain/
 ├── backend/                    # Python 后端 (Flask)
 │   ├── app.py                 # Flask 主应用入口
+│   ├── db.py                  # 向量库管理 API
 │   ├── requirements.txt       # Python 依赖
 │   ├── modules/               # 核心功能模块
-│   │   ├── __init__.py       # 模块包初始化
+│   │   ├── __init__.py        # 模块包初始化
 │   │   ├── ai_client.py       # AI 客户端（兼容 OpenAI SDK）
 │   │   ├── assistant.py       # AI 助手/Agent（旧版）
 │   │   ├── checkpoint/        # 检查点存储（独立模块）
@@ -47,7 +49,7 @@ chart-flow-longchain/
 │   │   │   └── detector.py    # 情绪检测器
 │   │   ├── rag/               # 模块化 RAG 框架（含 RAGWorkflow）
 │   │   │   ├── __init__.py
-│   │   │   ├── rag_chain.py   # RAG 链核心
+│   │   │   ├── rag.py         # RAG 工作流核心
 │   │   │   ├── indexer/       # 索引模块
 │   │   │   │   ├── base.py    # 索引器基类
 │   │   │   │   ├── chroma.py  # Chroma 实现
@@ -90,33 +92,51 @@ chart-flow-longchain/
 │   │   ├── mcp_client.py       # MCP 客户端
 │   │   ├── mcp_service.py      # MCP 服务封装
 │   │   ├── start.py            # MCP 服务器启动脚本
-│   │   ├── tools/              # 工具插件目录
-│   │   │   ├── __init__.py
-│   │   │   ├── registry.py     # 工具注册中心
-│   │   │   ├── weather_plugin.py
-│   │   │   ├── weather_recommend_plugin.py
-│   │   │   ├── submit_form_plugin.py
-│   │   │   └── dingtalk/       # 钉钉工具集
-│   │   │       ├── dingtalk_client.py
-│   │   │       ├── dingtalk_schedule_create_plugin.py
-│   │   │       ├── dingtalk_schedule_query_plugin.py
-│   │   │       ├── dingtalk_schedule_delete_plugin.py
-│   │   │       └── dingtalk_todo_plugin.py
-│   ├── knowledge_base/        # 知识库文档目录
-│   │   ├── default/          # 默认知识库（产品文档等）
-│   │   └── politics/         # 政策文档知识库
-│   └── db/                    # 向量数据库存储目录
+│   │   └── tools/              # 工具插件目录
+│   │       ├── __init__.py
+│   │       ├── registry.py     # 工具注册中心
+│   │       ├── weather_plugin.py
+│   │       ├── weather_recommend_plugin.py
+│   │       ├── submit_form_plugin.py
+│   │       └── dingtalk/       # 钉钉工具集
+│   │           ├── dingtalk_client.py
+│   │           ├── dingtalk_schedule_create_plugin.py
+│   │           ├── dingtalk_schedule_query_plugin.py
+│   │           ├── dingtalk_schedule_delete_plugin.py
+│   │           └── dingtalk_todo_plugin.py
+│   ├── knowledge_base/        # 知识库管理模块（独立模块）
+│   │   ├── __init__.py
+│   │   ├── manager.py          # 知识库管理器
+│   │   ├── databases.json      # 知识库元数据
+│   │   ├── default/            # 默认知识库（产品文档等）
+│   │   ├── politics/           # 政策文档知识库
+│   │   └── exams/              # 考试资料知识库
+│   ├── db/                    # 向量数据库存储目录（Chroma）
+│   └── user/                  # 用户管理模块
+│       ├── __init__.py
+│       ├── base.py
+│       ├── factory.py
+│       ├── memory.py
+│       └── redis.py
 
 ├── frontend/                   # React 前端 (Vite)
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── ChatArea.jsx
-│   │   │   ├── Header.jsx
-│   │   │   └── InputArea.jsx
+│   │   │   ├── ChatArea.jsx          # 聊天区域组件
+│   │   │   ├── Header.jsx            # 头部组件
+│   │   │   ├── InputArea.jsx         # 输入区域组件
+│   │   │   └── VectorDBManager.jsx   # 向量库管理组件
 │   │   └── api/
-│   │       └── chat.js
+│   │       ├── chat.js               # 聊天 API
+│   │       └── vectorDb.js           # 向量库管理 API
 │   └── package.json
-├── .env                       # 环境变量配置
+├── resources/                   # 资源文件
+│   ├── qa_test.png               # 智能问答测试截图
+│   ├── schedule_test.png         # 日程创建测试截图
+│   ├── todo_test.png             # 待办创建测试截图
+│   ├── chat_test.png             # 多轮对话测试截图
+│   └── db_manager.png            # 向量库管理界面截图
+├── .env                         # 环境变量配置
 └── .gitignore
 ```
 
@@ -240,6 +260,17 @@ RAG 流程:
 |-----------|------|---------|
 | default | 产品文档、公司信息 | 智能办公系统、数据分析平台、价格方案、售后服务 |
 | politics | 政策文档 | 党的会议文件、政策文件 |
+| exams | 考试资料 | 行测蒙题技巧、考试复习资料 |
+
+### 可视化知识库管理
+
+系统提供前端 UI 支持知识库的动态管理：
+
+- **创建知识库**: 通过前端界面创建新的知识库，自动生成对应的目录和索引
+- **删除知识库**: 删除不需要的知识库，同时清理相关的向量索引
+- **上传文档**: 支持上传 .txt、.pdf、.docx 格式的文档
+- **自动向量化**: 上传的文档会自动进行切分、向量化并建立索引
+- **文档管理**: 查看、删除已上传的文档，支持重新索引
 
 ### 智能路由
 
@@ -418,6 +449,121 @@ APP_PORT = 5000
   "tool_calls": [],
   "session_id": "会话ID",
   "finished": false
+}
+```
+
+### 向量库管理 API
+
+#### GET /api/databases
+
+获取所有知识库列表。
+
+**响应:**
+```json
+{
+  "status": "success",
+  "data": [
+    {
+      "name": "default",
+      "description": "默认知识库",
+      "document_count": 5,
+      "vector_count": 128,
+      "created_at": "2024-01-01 10:00:00"
+    }
+  ]
+}
+```
+
+#### POST /api/databases
+
+创建新的知识库。
+
+**请求:**
+```json
+{
+  "name": "my_knowledge_base",
+  "description": "我的知识库"
+}
+```
+
+**响应:**
+```json
+{
+  "status": "success",
+  "message": "数据库创建成功",
+  "data": {"name": "my_knowledge_base", "description": "我的知识库"}
+}
+```
+
+#### GET /api/databases/{db_name}
+
+获取指定知识库详情。
+
+**响应:**
+```json
+{
+  "status": "success",
+  "data": {
+    "name": "default",
+    "description": "默认知识库",
+    "document_count": 5,
+    "vector_count": 128,
+    "documents": ["file1.txt", "file2.pdf"],
+    "created_at": "2024-01-01 10:00:00",
+    "updated_at": "2024-01-02 14:30:00"
+  }
+}
+```
+
+#### PUT /api/databases/{db_name}
+
+更新知识库信息。
+
+**请求:**
+```json
+{
+  "description": "更新后的描述"
+}
+```
+
+**响应:**
+```json
+{
+  "status": "success",
+  "message": "数据库信息更新成功"
+}
+```
+
+#### DELETE /api/databases/{db_name}
+
+删除知识库（同时删除向量索引）。
+
+**响应:**
+```json
+{
+  "status": "success",
+  "message": "数据库删除成功"
+}
+```
+
+#### POST /api/databases/{db_name}/upload
+
+上传文档到知识库并自动向量化。
+
+**请求:** `multipart/form-data`
+```
+files: [file1.txt, file2.pdf, file3.docx]
+```
+
+**响应:**
+```json
+{
+  "status": "success",
+  "message": "文件上传成功",
+  "data": {
+    "uploaded_files": ["file1.txt", "file2.pdf"],
+    "vector_count": 256
+  }
 }
 ```
 
@@ -748,6 +894,7 @@ BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
 | `schedule_test.png` | 日程创建测试 |
 | `todo_test.png` | 待办创建测试 |
 | `chat_test.png` | 多轮对话测试 |
+| `db_manager.png` | 向量库管理界面 |
 
 ### 钉钉部署配置
 
@@ -787,3 +934,9 @@ DINGTALK_CLIENT_SECRET=your_app_secret
 支持上下文保持的多轮对话：
 
 ![多轮对话测试](resources/chat_test.png)
+
+#### 向量库管理
+
+提供可视化的向量库管理前端界面，支持知识库文档的上传、管理和检索：
+
+![向量库管理](resources/db_manager.png)

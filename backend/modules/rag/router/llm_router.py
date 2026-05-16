@@ -17,7 +17,7 @@ from typing import Optional, Dict, Any
 from langchain_core.messages import HumanMessage
 
 from .base import BaseRouter
-from modules.knowledge_base import kb_manager
+from knowledge_base import kb_manager
 
 
 class LLMRouter(BaseRouter):

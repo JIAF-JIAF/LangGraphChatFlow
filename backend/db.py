@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from modules.ai_client import AIClient
 from modules.rag.indexer import ChromaIndexer
 from modules.document_loaders import DocumentLoaderFactory
-from modules.knowledge_base import kb_manager
+from knowledge_base import kb_manager
 
 load_dotenv()
 
