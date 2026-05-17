@@ -1,16 +1,23 @@
 """
 LangGraph Agent 实现
 
-标准 LangGraph RAG 流程：
-START → feeling_detect → router → ┌── 需要检索 ──→ retrieve → generate → call_model → END
-                                  │
-                                  └── 不需要检索 ──→ call_model → END
+标准 LangGraph RAG 流程，增强版包含任务规划和反思校验：
+
+START → feeling_detect → router → ┌── 需要检索 ──→ retrieve → generate → plan
+                                 │                                        │
+                                 └── 不需要检索 ──→ plan ←─────────────────┘
+                                                      │
+                                                      ▼
+                                            execute_task → reflect → check_task_complete → ┌── 有更多任务 ──→ execute_task
+                                                          │                                     │
+                                                          └─────────────────────────────────────┴── 所有任务完成 ──→ call_model → END
 
 采用 LangGraph 标准会话管理：
 - 使用 Checkpointer 进行状态持久化
 - 通过 thread_id 实现会话隔离
 - 在 call_model 节点中更新对话历史
 - 支持感情侦测，动态更新 prompt
+- 支持任务规划和反思校验
 """
 
 import time
@@ -19,48 +26,64 @@ from langgraph.graph import StateGraph, END, START
 from langchain_core.messages import HumanMessage, AIMessage
 
 from .state import AgentState
-from modules.checkpoint import MemorySaver
 from modules.prompt import create_prompt
 
 
 class LangGraphAgent:
     """
-    LangGraph Agent
+    LangGraph Agent（增强版）
 
-    纯调度层：
-    - 调用 RAGWorkflow 处理检索逻辑
+    核心功能：
+    - 调用 RAGWorkflow 处理检索逻辑（可替换）
     - 调用外部 Agent 处理对话（可替换）
     - 使用 Checkpointer 进行状态持久化（可替换）
-    - 在 call_model 节点中更新对话历史
-    - 支持感情侦测，动态更新 prompt
+    - 支持感情侦测，动态更新 prompt（可替换）
+    - 支持任务规划：将复杂需求拆分为子任务（可替换）
+    - 支持反思校验：验证回答质量，自动重试（可替换）
+
+    设计理念：
+    - 所有核心组件均通过构造函数注入，内部不感知具体实现
+    - 通过鸭子类型实现多态，只需实现约定的接口方法即可替换
+    - 保持架构灵活性，支持多种实现方案无缝切换
     """
 
     def __init__(
         self,
-        agent: Any = None,
-        rag_workflow: Optional[Any] = None,
-        checkpointer: Optional[Any] = None,
-        feeling_detector: Optional[Any] = None,
-        verbose: bool = True
+        agent: Any,
+        rag_workflow: Any,
+        checkpointer: Any,
+        feeling_detector: Any,
+        task_planner: Any,
+        reflection_checker: Any,
+        verbose: bool = True,
+        max_retries: int = 3
     ):
         """
         初始化 LangGraph Agent
 
         Args:
-            agent: 外部 Agent 实例（可替换），需实现 invoke(query, session_id) 方法
-            rag_workflow: RAGWorkflow 实例，用于处理检索逻辑（可替换）
-            checkpointer: 检查点存储实例（可替换），默认为 MemorySaver。
-                         支持自定义实现 BaseCheckpointSaver 接口的类
-            feeling_detector: 感情侦测器实例，用于分析用户情绪
+            agent: 外部 Agent 实例（可替换），需实现 invoke(query, session_id, chat_history, feeling, uid) 方法
+            rag_workflow: RAGWorkflow 实例（可替换），用于处理检索逻辑
+            checkpointer: 检查点存储实例（可替换），需实现 LangGraph CheckpointSaver 接口
+            feeling_detector: 感情侦测器实例（可替换），需实现 detect(text, detailed) 方法
+            task_planner: 任务规划器实例（可替换），需实现 plan(query, context) 方法
+            reflection_checker: 反思校验器实例（可替换），需实现 reflect(query, answer, documents) 方法
             verbose: 是否输出详细日志
-        """
-        self._agent = agent              # 可替换的 Agent
-        self._rag_workflow = rag_workflow  # 可替换的 RAG
-        self._feeling_detector = feeling_detector  # 感情侦测器
-        self._verbose = verbose
+            max_retries: 最大重试次数（默认3次）
 
-        # 使用传入的 checkpointer，默认使用自定义 MemorySaver（保持不动，支持外部传入）
-        self._checkpointer = checkpointer or MemorySaver()
+        替换说明：
+        - 所有标注"(可替换)"的参数均可传入不同实现
+        - 内部仅依赖约定接口，不依赖具体实现类
+        - 实现方式由调用方决定，内部不感知
+        """
+        self._agent = agent
+        self._rag_workflow = rag_workflow
+        self._checkpointer = checkpointer
+        self._feeling_detector = feeling_detector
+        self._task_planner = task_planner
+        self._reflection_checker = reflection_checker
+        self._verbose = verbose
+        self._max_retries = max_retries
         self._graph = None
 
         self._build_graph()
@@ -88,16 +111,11 @@ class LangGraphAgent:
             更新后的状态（包含 feeling）
         """
         query = state["query"]
-
         self._log(f"[节点: feeling_detect] 开始执行，查询: {query[:30]}...")
-
-        if self._feeling_detector:
-            feeling = self._feeling_detector.detect(query, True)
-            self._log(f"[节点: feeling_detect] 情绪分析结果: {feeling}")
-        else:
-            feeling = {"feeling": "default", "score": 5}
-            self._log(f"[节点: feeling_detect] 感情侦测器不可用，使用默认情绪")
-
+        
+        feeling = self._feeling_detector.detect(query, True)
+        self._log(f"[节点: feeling_detect] 情绪分析结果: {feeling}")
+        
         return {"feeling": feeling}
 
     def _router_node(self, state: AgentState) -> AgentState:
@@ -111,16 +129,11 @@ class LangGraphAgent:
             更新后的状态（只需返回需要更新的字段）
         """
         query = state["query"]
-
         self._log(f"[节点: router] 开始执行查询: {query[:30]}...")
-
-        if self._rag_workflow:
-            need_retrieve = self._rag_workflow.should_retrieve(query)
-            self._log(f"[节点: router] 决策: {'需要检索' if need_retrieve else '不需要检索'}")
-        else:
-            need_retrieve = False
-            self._log(f"[节点: router] RAG 不可用，直接调用 Agent")
-
+        
+        need_retrieve = self._rag_workflow.should_retrieve(query)
+        self._log(f"[节点: router] 决策: {'需要检索' if need_retrieve else '不需要检索'}")
+        
         return {"need_retrieve": need_retrieve}
 
     def _retrieve_node(self, state: AgentState) -> AgentState:
@@ -134,18 +147,13 @@ class LangGraphAgent:
             更新后的状态（只需返回 documents）
         """
         query = state["query"]
-
         self._log(f"[节点: retrieve] 开始执行")
-
-        if self._rag_workflow:
-            kb = self._rag_workflow.select_knowledge_base(query)
-            self._rag_workflow.switch_knowledge_base(kb)
-            documents = self._rag_workflow.retrieve(query)
-            self._log(f"[节点: retrieve] 检索到 {len(documents)} 个文档")
-        else:
-            documents = []
-            self._log(f"[节点: retrieve] RAG 不可用，返回空文档")
-
+        
+        kb = self._rag_workflow.select_knowledge_base(query)
+        self._rag_workflow.switch_knowledge_base(kb)
+        documents = self._rag_workflow.retrieve(query)
+        self._log(f"[节点: retrieve] 检索到 {len(documents)} 个文档")
+        
         return {"documents": documents}
 
     def _generate_node(self, state: AgentState) -> AgentState:
@@ -156,34 +164,286 @@ class LangGraphAgent:
             state: 当前状态（包含 query, documents, chat_history）
 
         Returns:
-            更新后的状态（返回 RAG 生成的 answer，传给 call_model 进行最终回答）
+            更新后的状态（返回 RAG 生成的 answer 和成功标志，传给 plan 节点进行任务规划）
         """
         query = state["query"]
         documents = state.get("documents", [])
-
         self._log(f"[节点: generate] 开始执行，文档数: {len(documents)}")
+        
+        # RAG 返回结构化结果
+        result = self._rag_workflow.generate(query, documents)
+        answer = result["answer"]
+        rag_success = result["success"]
+        
+        self._log(f"[节点: generate] RAG 生成完成: {answer[:50]}... (成功: {rag_success})")
+        
+        return {"answer": answer, "rag_success": rag_success}
 
-        # 调用 RAG 生成回答
-        if self._rag_workflow:
-            answer = self._rag_workflow.generate(query, documents)
+    def _plan_node(self, state: AgentState) -> AgentState:
+        """
+        规划节点：将复杂需求拆分为子任务
+
+        Args:
+            state: 当前状态（包含 query, documents, answer, rag_success）
+
+        Returns:
+            更新后的状态（包含子任务队列和初始状态）
+        """
+        query = state["query"]
+        documents = state.get("documents", [])
+        rag_answer = state.get("answer", "")
+        rag_success = state.get("rag_success", False)
+        self._log(f"[节点: plan] 开始任务规划")
+        
+        # 如果 RAG 已经成功生成了完整回答，创建任务让 Agent 润色
+        if rag_success:
+            self._log(f"[节点: plan] RAG 已生成完整回答，创建润色任务")
+            subtasks = [{
+                "task_id": "task_1",
+                "task_description": f"请对以下内容进行润色和优化，使其更自然流畅：\n\n{rag_answer}",
+                "dependencies": [],
+                "status": "pending",
+                "result": ""
+            }]
         else:
-            answer = "RAG 服务不可用，请稍后重试"
+            # 构建上下文
+            context_parts = []
+            if rag_answer:
+                context_parts.append(f"初步分析结果：{rag_answer}")
+            if documents:
+                context_parts.append("\n".join([doc.page_content[:500] for doc in documents]))
+            context = "\n\n".join(context_parts)
+            
+            # 生成子任务
+            subtasks = self._task_planner.plan(query, context)
+        
+        self._log(f"[节点: plan] 生成 {len(subtasks)} 个子任务")
+        for i, task in enumerate(subtasks):
+            self._log(f"  [{i+1}] {task['task_description'][:30]}...")
+        
+        return {
+            "subtasks": subtasks,
+            "current_task_idx": 0,
+            "is_task_completed": False,
+            "retry_count": 0,
+            "max_retries": self._max_retries,
+            "retry_task_idx": -1,
+            "is_reflection_passed": False,
+            "reflection_feedback": "",
+            "reflection_suggestions": [],
+            "reflection_confidence": 0.0
+        }
 
-        self._log(f"[节点: generate] RAG 生成完成: {answer[:50]}...")
+    def _execute_task_node(self, state: AgentState) -> AgentState:
+        """
+        任务执行节点：执行当前子任务
 
-        # 返回 RAG 生成的回答，传给 call_model 进行最终处理
-        return {"answer": answer}
+        Args:
+            state: 当前状态（包含 subtasks, current_task_idx, retry_count, reflection_suggestions, feeling）
+
+        Returns:
+            更新后的状态（包含执行结果）
+        """
+        subtasks = state["subtasks"]
+        current_idx = state["current_task_idx"]
+        retry_count = state["retry_count"]
+        reflection_suggestions = state["reflection_suggestions"]
+        feeling = state["feeling"]
+        
+        current_task = subtasks[current_idx]
+        task_desc = current_task["task_description"]
+        self._log(f"[节点: execute_task] 执行任务 {current_idx + 1}/{len(subtasks)}: {task_desc[:30]}... (重试次数: {retry_count})")
+        
+        # 构建任务执行约束
+        task_constraint = "\n\n【重要约束】这是计划执行模式，你必须独立完成此任务，不得向用户追问信息。如果任务需要用户提供额外信息才能完成，请基于已有信息自行推断并完成。"
+        
+        # 如果是重试，加入反思建议
+        if retry_count > 0 and reflection_suggestions:
+            suggestions_text = "\n".join(f"- {s}" for s in reflection_suggestions)
+            enhanced_task = f"请完成以下任务：\n{task_desc}{task_constraint}\n\n改进建议（基于上一次执行反馈）：\n{suggestions_text}"
+        else:
+            enhanced_task = f"请完成以下任务：\n{task_desc}{task_constraint}"
+        
+        # 获取 RAG 检索到的文档
+        documents = state.get("documents", [])
+        
+        # 调用 Agent 执行任务
+        self._update_prompt_with_feeling(feeling)
+        result = self._agent.invoke(enhanced_task, documents, state.get("chat_history", []), feeling)
+        task_result = result.get("answer", "")
+        
+        self._log(f"[节点: execute_task] 任务执行完成: {task_result[:50]}...")
+        
+        # 更新任务结果
+        subtasks[current_idx]["result"] = task_result
+        subtasks[current_idx]["status"] = "completed"
+        
+        return {
+            "subtasks": subtasks,
+            "answer": task_result,
+            "is_task_completed": True
+        }
+
+    def _reflect_node(self, state: AgentState) -> AgentState:
+        """
+        反思校验节点：评估当前任务回答的质量
+
+        Args:
+            state: 当前状态（包含 query, answer, documents, subtasks, current_task_idx, retry_count）
+
+        Returns:
+            更新后的状态（包含校验结果、反馈、建议、置信度和重试计数）
+        """
+        query = state["query"]
+        answer = state["answer"]
+        documents = state.get("documents", [])
+        subtasks = state["subtasks"]
+        current_idx = state["current_task_idx"]
+        retry_count = state["retry_count"]
+        
+        self._log(f"[节点: reflect] 开始反思校验 (重试次数: {retry_count})")
+        
+        # 获取当前任务描述
+        current_task_desc = subtasks[current_idx]["task_description"]
+        
+        # 执行校验
+        result = self._reflection_checker.reflect(current_task_desc, answer, documents)
+        is_passed = result["is_passed"]
+        feedback = result["feedback"]
+        suggestions = result["suggestions"]
+        confidence = result["confidence"]
+        
+        self._log(f"[节点: reflect] 校验结果: {'通过' if is_passed else '未通过'} (置信度: {confidence:.2f})")
+        if feedback:
+            self._log(f"[节点: reflect] 反馈: {feedback[:50]}...")
+        if suggestions:
+            self._log(f"[节点: reflect] 改进建议: {len(suggestions)} 条")
+        
+        return {
+            "is_reflection_passed": is_passed,
+            "reflection_feedback": feedback,
+            "reflection_suggestions": suggestions,
+            "reflection_confidence": confidence,
+            "retry_count": retry_count + 1 if not is_passed else retry_count,
+            "retry_task_idx": current_idx if not is_passed else -1
+        }
+
+    def _check_task_complete_node(self, state: AgentState) -> AgentState:
+        """
+        任务完成检查节点：判断是否有更多任务需要执行
+
+        Args:
+            state: 当前状态（包含 subtasks, current_task_idx, answer）
+
+        Returns:
+            更新后的状态（汇总最终答案或更新任务索引）
+        """
+        subtasks = state["subtasks"]
+        current_idx = state["current_task_idx"]
+        answer = state["answer"]
+        
+        self._log(f"[节点: check_task_complete] 检查任务完成情况")
+        
+        # 如果已完成所有任务
+        if current_idx >= len(subtasks) - 1:
+            self._log(f"[节点: check_task_complete] 所有任务已完成")
+            # 汇总所有任务结果
+            summary = self._task_planner.get_summary(subtasks)
+            if summary:
+                answer = summary
+                self._log(f"[节点: check_task_complete] 生成汇总结果: {summary[:50]}...")
+            return {
+                "answer": answer,
+                "is_task_completed": True,
+                "current_task_idx": current_idx
+            }
+        
+        # 还有更多任务
+        next_idx = current_idx + 1
+        self._log(f"[节点: check_task_complete] 准备执行下一个任务: {next_idx + 1}/{len(subtasks)}")
+        
+        return {
+            "current_task_idx": next_idx,
+            "is_task_completed": False,
+            "retry_count": 0,
+            "is_reflection_passed": False
+        }
+
+    def _should_retrieve(self, state: AgentState) -> Literal["retrieve", "plan"]:
+        """
+        条件路由：判断是否需要检索
+
+        Args:
+            state: 当前状态（包含 need_retrieve）
+
+        Returns:
+            "retrieve" 或 "plan"，决定下一步流向
+        """
+        decision = "retrieve" if state["need_retrieve"] else "plan"
+        self._log(f"[条件路由] 决策: {decision}")
+        return decision
+
+    def _should_retry(self, state: AgentState) -> Literal["retry", "continue"]:
+        """
+        条件路由：判断是否需要重试
+
+        Args:
+            state: 当前状态（包含 is_reflection_passed, retry_count, max_retries）
+
+        Returns:
+            "retry" 或 "continue"，决定是否重试当前任务
+        """
+        is_passed = state["is_reflection_passed"]
+        retry_count = state["retry_count"]
+        max_retries = state["max_retries"]
+
+        if is_passed:
+            decision = "continue"
+            self._log(f"[条件路由] 反思校验通过，继续流程")
+        elif retry_count < max_retries:
+            decision = "retry"
+            self._log(f"[条件路由] 反思校验未通过，重试 ({retry_count}/{max_retries})")
+        else:
+            decision = "continue"
+            self._log(f"[条件路由] 已达到最大重试次数 ({max_retries})，终止重试")
+
+        return decision
+
+    def _should_continue_tasks(self, state: AgentState) -> Literal["execute_task", "call_model"]:
+        """
+        条件路由：判断是否继续执行下一个任务
+
+        Args:
+            state: 当前状态（包含 subtasks, current_task_idx, is_task_completed）
+
+        Returns:
+            "execute_task" 或 "call_model"，决定下一步流向
+        """
+        subtasks = state["subtasks"]
+        current_idx = state["current_task_idx"]
+        is_task_completed = state.get("is_task_completed", False)
+
+        # 判断是否所有任务都已执行完成
+        # current_idx 是刚执行完的任务索引，需要大于等于最后一个任务索引才算全部完成
+        if is_task_completed or current_idx > len(subtasks) - 1:
+            decision = "call_model"
+            self._log(f"[条件路由] 所有任务已完成，进入最终回答")
+        else:
+            decision = "execute_task"
+            self._log(f"[条件路由] 还有任务未完成，继续执行任务 {current_idx + 1}/{len(subtasks)}")
+
+        return decision
 
     def _build_enhanced_query(self, query: str, rag_answer: str) -> str:
         """
         构建增强查询
 
         Args:
-            query: 原始用户查询
-            rag_answer: RAG 生成的结果
+            query: 原始查询
+            rag_answer: RAG 生成的初步回答
 
         Returns:
-            增强后的查询
+            增强后的查询字符串
         """
         if rag_answer:
             return f"基于以下信息回答问题：\n{rag_answer}\n\n问题：{query}"
@@ -191,42 +451,34 @@ class LangGraphAgent:
 
     def _call_model_node(self, state: AgentState) -> AgentState:
         """
-        调用模型节点：调用外部 Agent（基于 RAG 结果或原始问题），支持动态 prompt 更新
+        调用模型节点：生成最终回答，更新对话历史
 
         Args:
-            state: 当前状态（包含 query, answer(RAG结果), chat_history, feeling）
+            state: 当前状态（包含 query, answer, chat_history, feeling）
 
         Returns:
-            更新后的状态（返回 answer 和更新后的 chat_history）
+            更新后的状态（包含最终回答和更新后的对话历史）
         """
         query = state["query"]
-        rag_answer = state.get("answer", "")
+        answer = state["answer"]
         chat_history = state.get("chat_history", [])
-        feeling = state.get("feeling", {"feeling": "default", "score": 5})
-
-        self._log(f"[节点: call_model] 开始执行，RAG结果: {'有' if rag_answer else '无'}，对话历史长度: {len(chat_history)}")
-        self._log(f"[节点: call_model] 当前情绪: {feeling}")
-
-        # 总是调用 Agent，基于 RAG 结果或原始问题
-        if self._agent:
-            # 动态更新 prompt（根据情绪）
+        feeling = state["feeling"]
+        
+        self._log(f"[节点: call_model] 开始执行，回答长度: {len(answer)}，对话历史长度: {len(chat_history)}")
+        
+        # 如果回答无效，重新调用 Agent
+        rag_success = state.get("rag_success", False)
+        if not answer or (state.get("need_retrieve", False) and not rag_success):
             self._update_prompt_with_feeling(feeling)
-
-            enhanced_query = self._build_enhanced_query(query, rag_answer)
-
-            uid = state.get("uid")
-            result = self._agent.invoke(enhanced_query, None, chat_history, feeling, uid)
+            result = self._agent.invoke(query, None, chat_history, feeling)
             answer = result.get("answer", "")
-        else:
-            # 如果没有 Agent，直接使用 RAG 结果或返回错误
-            answer = rag_answer if rag_answer else "Agent 服务不可用，请稍后重试"
-
+        
         self._log(f"[节点: call_model] 执行完成: {answer[:50]}...")
-
+        
         result_state = self._update_chat_history(state, query, answer)
         result_state["answer"] = answer
         result_state["feeling"] = feeling
-
+        
         return result_state
 
     def _update_prompt_with_feeling(self, feeling: Dict[str, Any]):
@@ -234,26 +486,11 @@ class LangGraphAgent:
         根据情绪动态更新 Agent 的 prompt
 
         Args:
-            feeling: 情绪对象，格式: {"feeling": str, "score": int}
+            feeling: 情绪分析结果
         """
-        if self._agent:
-            new_prompt = create_prompt(feeling=feeling)
-            self._agent.update_prompt(new_prompt)
-            self._log(f"[节点: call_model] 已根据情绪更新 prompt: {feeling['feeling']}")
-
-    def _should_retrieve(self, state: AgentState) -> Literal["retrieve", "call_model"]:
-        """
-        条件路由
-
-        Args:
-            state: 当前状态
-
-        Returns:
-            下一个节点名称
-        """
-        decision = "retrieve" if state.get("need_retrieve", False) else "call_model"
-        self._log(f"[条件路由] 决策: {decision}")
-        return decision
+        new_prompt = create_prompt(feeling=feeling)
+        self._agent.update_prompt(new_prompt)
+        self._log(f"[节点: call_model] 已根据情绪更新 prompt: {feeling['feeling']}")
 
     def _update_chat_history(self, state: AgentState, query: str, answer: str) -> AgentState:
         """
@@ -262,10 +499,10 @@ class LangGraphAgent:
         Args:
             state: 当前状态
             query: 用户查询
-            answer: AI 回答
+            answer: 生成的回答
 
         Returns:
-            更新后的状态（包含新的 chat_history）
+            更新后的状态（包含新的对话历史）
         """
         if query and answer:
             self._log(f"[_update_chat_history] 自动更新对话历史")
@@ -281,71 +518,108 @@ class LangGraphAgent:
                 new_history = new_history[-max_history_messages:]
                 self._log(f"[_update_chat_history] 对话历史已裁剪，当前长度: {len(new_history)}")
             
-            return {
-                "chat_history": new_history
-            }
+            return {"chat_history": new_history}
         return state
 
     def _build_graph(self):
         """
-        构建状态图
+        构建增强版状态图
 
-        标准 RAG 流程：
-        START → feeling_detect → router → ┌── 需要检索 ──→ retrieve → generate → call_model → END
-                                          │
-                                          └── 不需要检索 ──→ call_model → END
+        状态图结构：
+        START -> feeling_detect -> router
+                            router -> retrieve -> generate -> plan
+                            router -> plan
+                            plan -> execute_task -> reflect -> should_retry
+                            reflect -> retry -> execute_task
+                            reflect -> continue -> check_task_complete
+                            check_task_complete -> execute_task / call_model
+                            call_model -> END
         """
-        self._log("开始构建 LangGraph 状态图...")
-
+        self._log("开始构建增强版 LangGraph 状态图...")
+        
         self._graph = StateGraph(AgentState)
 
+        # 添加节点
         self._graph.add_node("feeling_detect", self._feeling_detect_node)
         self._graph.add_node("router", self._router_node)
         self._graph.add_node("retrieve", self._retrieve_node)
         self._graph.add_node("generate", self._generate_node)
+        self._graph.add_node("plan", self._plan_node)
+        self._graph.add_node("execute_task", self._execute_task_node)
+        self._graph.add_node("reflect", self._reflect_node)
+        self._graph.add_node("check_task_complete", self._check_task_complete_node)
         self._graph.add_node("call_model", self._call_model_node)
 
+        # 基础流程
         self._graph.add_edge(START, "feeling_detect")
         self._graph.add_edge("feeling_detect", "router")
 
+        # 路由分支：检索或直接规划
         self._graph.add_conditional_edges(
             "router",
             self._should_retrieve,
-            {"retrieve": "retrieve", "call_model": "call_model"}
+            {"retrieve": "retrieve", "plan": "plan"}
         )
 
-        # 完整的 RAG 流程：retrieve → generate → call_model
+        # RAG 路径
         self._graph.add_edge("retrieve", "generate")
-        self._graph.add_edge("generate", "call_model")
+        self._graph.add_edge("generate", "plan")
 
+        # 任务执行主路径（暂时跳过 reflect）
+        self._graph.add_edge("plan", "execute_task")
+        self._graph.add_edge("execute_task", "check_task_complete")
+
+        # 任务完成检查后的条件分支
+        self._graph.add_conditional_edges(
+            "check_task_complete",
+            self._should_continue_tasks,
+            {"execute_task": "execute_task", "call_model": "call_model"}
+        )
+
+        # 最终路径
         self._graph.add_edge("call_model", END)
 
-        # 使用 checkpointer 进行状态持久化（保持不动，支持外部传入）
+        # 编译图
         self._graph = self._graph.compile(checkpointer=self._checkpointer)
-        self._log("LangGraph 状态图构建完成")
+        self._log("增强版 LangGraph 状态图构建完成")
 
     def invoke(self, query: str, session_id: str = "default", uid: Optional[str] = None) -> Dict[str, Any]:
         """
         执行 Agent（标准 LangGraph 调用方式）
 
-        只需传入 query，其他状态由 LangGraph 通过 checkpointer 自动管理
-
         Args:
             query: 用户查询
-            session_id: 会话 ID（用于会话隔离）
-            uid: 用户 ID（用于钉钉等外部工具调用）
+            session_id: 会话ID
+            uid: 用户ID
 
         Returns:
-            包含 answer 和 feeling 的结果
+            包含回答和状态信息的字典
         """
         self._log(f"=== 开始处理请求 ===")
         self._log(f"会话ID: {session_id}")
         self._log(f"用户ID: {uid}")
         self._log(f"用户查询: {query}")
 
-        initial_state = {"query": query}
-        if uid:
-            initial_state["uid"] = uid
+        initial_state: AgentState = {
+            "query": query,
+            "session_id": session_id,
+            "chat_history": [],
+            "need_retrieve": False,
+            "documents": [],
+            "answer": "",
+            "feeling": {"feeling": "default", "score": 5},
+            "uid": uid,
+            "subtasks": [],
+            "current_task_idx": 0,
+            "is_task_completed": False,
+            "is_reflection_passed": False,
+            "reflection_feedback": "",
+            "reflection_suggestions": [],
+            "reflection_confidence": 0.0,
+            "retry_count": 0,
+            "max_retries": self._max_retries,
+            "retry_task_idx": -1
+        }
 
         result = self._graph.invoke(
             initial_state,
@@ -354,8 +628,10 @@ class LangGraphAgent:
 
         self._log(f"=== 请求处理完成 ===")
         return {
-            "answer": result.get("answer", ""),
-            "feeling": result.get("feeling", {"feeling": "default", "score": 5})
+            "answer": result["answer"],
+            "feeling": result["feeling"],
+            "reflection_confidence": result["reflection_confidence"],
+            "retry_count": result["retry_count"]
         }
 
     def get_graph(self):
@@ -363,6 +639,6 @@ class LangGraphAgent:
         获取编译后的状态图
 
         Returns:
-            编译后的图
+            编译后的 StateGraph 对象
         """
         return self._graph

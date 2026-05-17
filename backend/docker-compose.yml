@@ -1,6 +1,18 @@
-version: '3.8'
-
 services:
+  consul:
+    image: consul:1.15
+    container_name: chatbot-consul
+    ports:
+      - "18500:8500"
+    command: agent -server -ui -bootstrap-expect=1 -client=0.0.0.0
+    volumes:
+      - consul-data:/consul/data
+    healthcheck:
+      test: ["CMD", "consul", "members"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   redis:
     image: redis:7-alpine
     container_name: chatbot-redis
@@ -16,6 +28,9 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    labels:
+      - "service.name=redis"
+      - "service.port=6379"
 
   mcp:
     build:
@@ -32,6 +47,13 @@ services:
       - DINGTALK_CLIENT_ID=${DINGTALK_CLIENT_ID}
       - DINGTALK_CLIENT_SECRET=${DINGTALK_CLIENT_SECRET}
       - DINGTALK_USER_ID=${DINGTALK_USER_ID}
+      - CONSUL_HOST=${CONSUL_HOST:-consul}
+    labels:
+      - "service.name=mcp"
+      - "service.port=8080"
+    depends_on:
+      consul:
+        condition: service_healthy
 
   app:
     build:
@@ -39,6 +61,8 @@ services:
       dockerfile: Dockerfile
     container_name: chatbot-app
     depends_on:
+      consul:
+        condition: service_healthy
       redis:
         condition: service_healthy
       mcp:
@@ -60,6 +84,10 @@ services:
       - REDIS_DB=${REDIS_DB:-0}
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
       - CHECKPOINT_STORAGE=${CHECKPOINT_STORAGE:-redis}
+      - CONSUL_HOST=${CONSUL_HOST:-consul}
+    labels:
+      - "service.name=app"
+      - "service.port=8000"
 
   db:
     build:
@@ -80,6 +108,13 @@ services:
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-v3}
       - VECTOR_STORE_PERSIST_DIRECTORY=/app/db/chroma
       - KNOWLEDGE_BASE_DIR=/app/knowledge_base
+      - CONSUL_HOST=${CONSUL_HOST:-consul}
+    labels:
+      - "service.name=db"
+      - "service.port=5001"
+    depends_on:
+      consul:
+        condition: service_healthy
 
   db-frontend:
     build:
@@ -91,7 +126,28 @@ services:
       - "15174:80"
     depends_on:
       - db
+    labels:
+      - "service.name=db-frontend"
+      - "service.port=80"
+
+  gateway:
+    image: nginx:alpine
+    container_name: chatbot-gateway
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - app
+      - db
+      - mcp
+    labels:
+      - "service.name=gateway"
+      - "service.port=80"
 
 volumes:
   redis-data:
+    driver: local
+  consul-data:
     driver: local

@@ -185,7 +185,7 @@ class RAGWorkflow:
 
         return documents
 
-    def generate(self, query: str, documents: List[Document], session_id: str = "default") -> str:
+    def generate(self, query: str, documents: List[Document], session_id: str = "default") -> Dict[str, Any]:
         """
         生成回答
 
@@ -195,28 +195,39 @@ class RAGWorkflow:
             session_id: 会话 ID
 
         Returns:
-            生成的回答
+            包含生成结果的字典：
+            - success: 是否成功
+            - answer: 生成的回答
+            - error: 错误信息（如果失败）
         """
         self._log(f"[RAG] 生成回答 (文档数: {len(documents)})")
 
         self.memory.add_message(session_id, "human", query)
 
-        # generator = BaseGenerator(
-        #     llm_client=self.llm_client,
-        #     config=self.config.get("generator", {})
-        # )
-        # answer = generator.generate(query, documents)
-
-        if not documents:
-            answer = "未找到相关知识"
-        else:
-            context = "\n\n".join([doc.page_content for doc in documents])
-            answer = context
-
-        self.memory.add_message(session_id, "assistant", answer)
-
-        self._log(f"[RAG] 生成回答完成: {answer[:50]}...")
-        return answer
+        try:
+            if not documents:
+                answer = "未找到相关知识"
+                success = False
+            else:
+                context = "\n\n".join([doc.page_content for doc in documents])
+                answer = context
+                success = len(context) > 50  # 只有内容足够长才认为成功
+            
+            self.memory.add_message(session_id, "assistant", answer)
+            self._log(f"[RAG] 生成回答完成: {answer[:50]}...")
+            
+            return {
+                "success": success,
+                "answer": answer,
+                "error": None
+            }
+        except Exception as e:
+            self._log(f"[RAG] 生成回答失败: {e}")
+            return {
+                "success": False,
+                "answer": "",
+                "error": str(e)
+            }
 
     def build_index(self, source_dir: str = "knowledge_base"):
         """

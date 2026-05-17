@@ -13,7 +13,8 @@ from dotenv import load_dotenv
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from modules.ai_client import AIClient
-from modules.langgraph import LangGraphAgent, RAGWorkflow
+from modules.langgraph import LangGraphAgent, TaskPlanner, ReflectionChecker
+from modules.rag import RAGWorkflow
 from modules.checkpoint import CheckpointFactory
 from modules.assistant import Agent as LangChainAgent
 from modules.prompt import create_prompt
@@ -36,6 +37,7 @@ load_dotenv()
 # 全局变量
 assistant_instance = None
 user_sessions = {}
+processed_messages = set()  # 用于消息去重
 
 
 def setup_logging():
@@ -102,11 +104,19 @@ def init_system():
 
         checkpointer = CheckpointFactory.build(name=checkpoint_storage)
 
+        task_planner = TaskPlanner(llm_client=ai_client)
+        print("  任务规划器初始化完成")
+
+        reflection_checker = ReflectionChecker(llm_client=ai_client)
+        print("  反思校验器初始化完成")
+
         assistant_instance = LangGraphAgent(
             agent=langchain_agent,
             rag_workflow=rag_workflow,
             checkpointer=checkpointer,
-            feeling_detector=feeling_detector
+            feeling_detector=feeling_detector,
+            task_planner=task_planner,
+            reflection_checker=reflection_checker
         )
         print("LangGraph 调度层初始化完成")
     except Exception as e:
