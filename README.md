@@ -831,7 +831,17 @@ checkpointer = CheckpointFactory.build(name="memory")
 
 ## Docker 容器化部署
 
-系统已支持 Docker 容器化部署，可通过 `docker-compose` 一键启动。
+系统已支持 Docker 容器化部署，可通过 `docker-compose` 一键启动所有服务。
+
+### Docker 服务架构
+
+| 服务 | 端口 | 说明 |
+|------|------|------|
+| `redis` | 6379 | 会话状态存储 |
+| `mcp` | 8080 | MCP 工具服务器 |
+| `app` | 8000 | 智能客服后端 API |
+| `db` | 5001 | 向量库管理后端 API |
+| `vector-frontend` | 5174 | 向量库管理前端 UI |
 
 ### Docker 部署步骤
 
@@ -839,31 +849,14 @@ checkpointer = CheckpointFactory.build(name="memory")
 # 进入后端目录
 cd backend
 
-# 使用 Docker Compose 启动服务
+# 使用 Docker Compose 启动所有服务
 docker-compose up -d
 ```
 
-### Docker Compose 配置
+### 访问地址
 
-```yaml
-version: '3.8'
-services:
-  backend:
-    build: .
-    ports:
-      - "5000:5000"
-      - "8080:8080"
-    environment:
-      - API_KEY=${API_KEY}
-      - BASE_URL=${BASE_URL}
-      - MODEL=qwen3.5-flash
-      - EMBEDDING_MODEL=text-embedding-v3
-      - CHECKPOINT_STORAGE=memory
-    volumes:
-      - ./knowledge_base:/app/knowledge_base
-      - ./db:/app/db
-    restart: unless-stopped
-```
+- **智能客服**: http://localhost:8000
+- **向量库管理**: http://localhost:5174
 
 ### 环境变量文件 (.env)
 
@@ -871,6 +864,16 @@ services:
 # AI API 配置
 API_KEY=your_api_key
 BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+MODEL=qwen3.5-flash
+EMBEDDING_MODEL=text-embedding-v3
+
+# 向量数据库配置
+VECTOR_STORE_PERSIST_DIRECTORY=db/chroma
+
+# 检查点存储配置
+CHECKPOINT_STORAGE=memory
+REDIS_HOST=localhost
+REDIS_PORT=6379
 ```
 
 ## 钉钉智能会话助手

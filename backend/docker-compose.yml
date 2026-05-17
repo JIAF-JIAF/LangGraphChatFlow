@@ -5,7 +5,7 @@ services:
     image: redis:7-alpine
     container_name: chatbot-redis
     ports:
-      - "6379:6379"
+      - "16379:6379"
     volumes:
       - redis-data:/data
     environment:
@@ -24,7 +24,7 @@ services:
     container_name: chatbot-mcp
     command: python mcp_module/start.py
     ports:
-      - "8080:8080"
+      - "8888:8080"
     environment:
       - API_KEY=${API_KEY}
       - BASE_URL=${BASE_URL}
@@ -45,7 +45,7 @@ services:
         condition: service_started
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "18000:8000"
     volumes:
       - ./db/chroma:/app/db/chroma
       - ./knowledge_base:/app/knowledge_base
@@ -60,6 +60,37 @@ services:
       - REDIS_DB=${REDIS_DB:-0}
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
       - CHECKPOINT_STORAGE=${CHECKPOINT_STORAGE:-redis}
+
+  db:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: chatbot-db
+    command: python db.py
+    restart: unless-stopped
+    ports:
+      - "15001:5001"
+    volumes:
+      - ./db/chroma:/app/db/chroma
+      - ./knowledge_base:/app/knowledge_base
+    environment:
+      - API_KEY=${API_KEY}
+      - BASE_URL=${BASE_URL}
+      - MODEL=${MODEL:-qwen3.5-flash}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-v3}
+      - VECTOR_STORE_PERSIST_DIRECTORY=/app/db/chroma
+      - KNOWLEDGE_BASE_DIR=/app/knowledge_base
+
+  db-frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: chatbot-db-frontend
+    restart: unless-stopped
+    ports:
+      - "15174:80"
+    depends_on:
+      - db
 
 volumes:
   redis-data:

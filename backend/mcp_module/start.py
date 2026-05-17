@@ -27,7 +27,8 @@ def main():
     logger.logger.info("工具注册完成")
 
     logger.logger.info("启动服务器...")
-    mcp_server.run_server(host="0.0.0.0", port=8080)
+    port = int(os.environ.get("MCP_PORT", 8080))
+    mcp_server.run_server(host="0.0.0.0", port=port)
 
 if __name__ == "__main__":
     main()
