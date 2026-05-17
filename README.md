@@ -18,6 +18,7 @@
 - **Streamable HTTP**: 基于 HTTP 的流式传输协议，支持实时响应
 - **情绪感知**: 基于关键词规则的情绪分析（default、upbeat、angry、cheerful、depressed、friendly），动态更新 Prompt
 - **FewShot 示例学习**: 基于 LengthBasedExampleSelector 的动态示例选择
+- **智能任务规划**: 基于 LLM 的问题难度评估（1-5级），自动生成多步骤执行计划，支持工具调用与任务规划的深度整合
 - **前后端分离**: React + Vite 前端 + Flask 后端
 - **模块化设计**: 清晰的后端架构，易于扩展
 - **LangGraph 集成**: 基于状态图的工作流编排，支持持久化检查点
@@ -912,34 +913,50 @@ DINGTALK_CLIENT_ID=your_app_key
 DINGTALK_CLIENT_SECRET=your_app_secret
 ```
 
+## 功能展示
+
+### Docker 容器化部署
+
+系统已支持 Docker 容器化部署，通过 `docker-compose` 一键启动所有服务：
+
+![Docker 服务架构](resources/docker.png)
+
+### 复杂任务规划
+
+系统支持基于 LLM 的智能任务规划，根据问题难度自动生成多步骤执行计划：
+
+| 难度等级 | 描述 | 任务数量 |
+|---------|------|---------|
+| 1级 | 简单事实查询 | 1个任务 |
+| 2级 | 需要简单推理 | 1个任务 |
+| 3级 | 需要多步骤分析 | 2个任务 |
+| 4级 | 需要综合多领域知识 | 3个任务 |
+| 5级 | 需要创造性解决方案 | 4个任务 |
+
 ### 测试验证截图
 
-#### 智能问答测试
+#### 核心功能展示
 
-智能会话助手能够准确回答用户问题，并自动从知识库检索相关信息：
+| 智能问答 | 日程管理 | 待办事项 | 多轮对话 |
+|---------|---------|---------|---------|
+| ![智能问答测试](resources/qa_test.png) | ![日程创建测试](resources/schedule_test.png) | ![待办创建测试](resources/todo_test.png) | ![多轮对话测试](resources/chat_test.png) |
 
-![智能问答测试](resources/qa_test.png)
+#### 复杂任务规划展示
 
-#### 日程管理测试
+| 任务规划 | 任务执行 | 结果汇总 |
+|---------|---------|---------|
+| ![任务规划](resources/complex_task_2.png) | ![任务执行](resources/complex_task_3.png) | ![结果汇总](resources/complex_task_4.png) |
 
-成功创建钉钉日程，支持全天和非全天模式：
+#### 工具调用与任务规划结合
 
-![日程创建测试](resources/schedule_test.png)
+系统支持工具调用与任务规划的深度整合，例如结合天气查询制定旅行计划：
 
-#### 待办事项测试
-
-创建待办任务，支持设置截止日期：
-
-![待办创建测试](resources/todo_test.png)
-
-#### 多轮对话测试
-
-支持上下文保持的多轮对话：
-
-![多轮对话测试](resources/chat_test.png)
+| 天气查询 | 旅行计划 |
+|---------|---------|
+| ![天气查询](resources/too_taskl.png) | ![旅行计划](resources/complex_task_5.png) |
 
 #### 向量库管理
 
-提供可视化的向量库管理前端界面，支持知识库文档的上传、管理和检索：
+提供可视化的向量库管理前端界面：
 
 ![向量库管理](resources/db_manager.png)
