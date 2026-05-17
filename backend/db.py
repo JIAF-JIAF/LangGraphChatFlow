@@ -49,7 +49,6 @@ def get_database_stats(db_name):
         init_ai_client()
         indexer = ChromaIndexer(
             ai_client=ai_client,
-            config={"persist_directory": CHROMA_DB_DIR},
             collection_name=db_name
         )
 
@@ -108,7 +107,6 @@ def create_database():
         init_ai_client()
         indexer = ChromaIndexer(
             ai_client=ai_client,
-            config={"persist_directory": CHROMA_DB_DIR},
             collection_name=db_name
         )
         indexer.build_index(os.path.join(kb_manager.knowledge_base_dir, db_name))
@@ -174,7 +172,6 @@ def delete_database(db_name):
         init_ai_client()
         indexer = ChromaIndexer(
             ai_client=ai_client,
-            config={"persist_directory": CHROMA_DB_DIR},
             collection_name=db_name
         )
         indexer.delete_collection()
@@ -224,7 +221,6 @@ def upload_files(db_name):
         init_ai_client()
         indexer = ChromaIndexer(
             ai_client=ai_client,
-            config={"persist_directory": CHROMA_DB_DIR},
             collection_name=db_name
         )
 
@@ -294,7 +290,6 @@ def delete_document(db_name, doc_name):
         init_ai_client()
         indexer = ChromaIndexer(
             ai_client=ai_client,
-            config={"persist_directory": CHROMA_DB_DIR},
             collection_name=db_name
         )
         indexer.delete_collection()

@@ -21,31 +21,31 @@ class MilvusIndexer(BaseIndexer):
     
     基于 Milvus Lite 的向量索引器，支持文档加载、分词、向量化存储和相似度检索。
     Milvus Lite 是一个轻量级的向量数据库，可以在本地运行。
+
+    配置项（环境变量）：
+        MILVUS_COLLECTION_NAME: 集合名称（默认knowledge_base）
+        MILVUS_DIM: 向量维度（默认1536）
     """
 
-    def __init__(self, ai_client=None, config: Optional[Dict] = None):
+    def __init__(self, ai_client=None):
         """
         初始化 Milvus 索引器
         
         Args:
             ai_client: AI 客户端实例，用于生成向量嵌入
-            config: 配置字典，包含:
-                - collection_name: 集合名称，默认 "knowledge_base"
-                - dim: 向量维度，默认会从嵌入模型获取
-                - index_params: 索引参数
         """
         if not MILVUS_AVAILABLE:
             raise ImportError("需要安装 pymilvus 依赖：pip install pymilvus")
 
-        super().__init__(ai_client=ai_client, config=config)
+        super().__init__(ai_client=ai_client)
         
-        self.collection_name = self.config.get("collection_name", "knowledge_base")
-        self.dim = self.config.get("dim", 1536)  # 默认使用 text-embedding-v3 维度
-        self.index_params = self.config.get("index_params", {
+        self.collection_name = os.getenv("MILVUS_COLLECTION_NAME", "knowledge_base")
+        self.dim = int(os.getenv("MILVUS_DIM", 1536))
+        self.index_params = {
             "metric_type": "L2",
             "index_type": "IVF_FLAT",
             "params": {"nlist": 128}
-        })
+        }
         self.collection = None
 
     def _connect(self):

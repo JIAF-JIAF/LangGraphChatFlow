@@ -24,15 +24,14 @@ class SimpleVectorRetriever(BaseRetriever):
     基于向量相似度进行检索。
     """
 
-    def __init__(self, indexer=None, config: Optional[Dict] = None):
+    def __init__(self, indexer=None):
         """
         初始化检索器
         
         Args:
             indexer: 索引器实例，用于获取底层检索器
-            config: 配置参数（可选）
         """
-        super().__init__(indexer=indexer, config=config)
+        super().__init__(indexer=indexer)
         self._retriever = None
         self._init_retriever()
 

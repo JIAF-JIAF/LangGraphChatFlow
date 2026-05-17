@@ -12,8 +12,14 @@
 使用的模型：
 - 默认使用 BAAI/bge-reranker-base（中文重排序效果较好）
 - 支持自定义模型
+
+配置项（环境变量）：
+    RERANK_TOP_K: 重排序返回数量（默认3）
+    RERANK_RETRIEVE_TOP_K: 初次检索数量（默认10）
+    RERANK_MODEL_NAME: 重排序模型名称（默认BAAI/bge-reranker-base）
 """
 
+import os
 from typing import List, Optional, Dict, Tuple
 from langchain_core.documents import Document
 from sentence_transformers import CrossEncoder
@@ -28,16 +34,14 @@ class RerankingRetriever(BaseRetriever):
     使用 Cross-Encoder 模型对检索结果进行重排序。
     """
 
-    def __init__(self, base_retriever: BaseRetriever, config: Optional[Dict] = None):
-        super().__init__(indexer=None, config=config)
+    def __init__(self, base_retriever: BaseRetriever):
+        super().__init__(indexer=None)
         self.base_retriever = base_retriever
         
-        # 配置参数
-        self.rerank_top_k = self.config.get("rerank_top_k", 3)
-        self.retrieve_top_k = self.config.get("retrieve_top_k", 10)
-        self.model_name = self.config.get("model_name", "BAAI/bge-reranker-base")
+        self.rerank_top_k = int(os.getenv("RERANK_TOP_K", 3))
+        self.retrieve_top_k = int(os.getenv("RERANK_RETRIEVE_TOP_K", 10))
+        self.model_name = os.getenv("RERANK_MODEL_NAME", "BAAI/bge-reranker-base")
         
-        # 延迟加载重排序模型
         self._reranker = None
 
     @property

@@ -11,8 +11,12 @@
 判断逻辑：
 - 需要检索：产品文档、公司政策、技术规范、特定领域知识、事实查询
 - 不需要检索：常识问题、创造性写作、数学计算、闲聊对话
+
+配置项（环境变量）：
+    ROUTER_RETRIEVAL_THRESHOLD: 检索阈值（默认0.7）
 """
 
+import os
 from typing import Optional, Dict, Any
 from langchain_core.messages import HumanMessage
 
@@ -28,20 +32,19 @@ class LLMRouter(BaseRouter):
 
     属性：
         llm_client: LLM客户端实例，用于分析用户查询
-        config: 配置字典
+        _retrieval_threshold: 检索阈值
     """
 
-    def __init__(self, llm_client, config: Optional[Dict] = None):
+    def __init__(self, llm_client):
         """
         初始化LLM路由器
 
         Args:
             llm_client: LLM客户端实例（需要支持 chat.invoke 方法）
-            config: 配置参数（可选）
         """
-        super().__init__(config)
+        super().__init__()
         self.llm_client = llm_client
-        self._retrieval_threshold = self.config.get("retrieval_threshold", 0.7)
+        self._retrieval_threshold = float(os.getenv("ROUTER_RETRIEVAL_THRESHOLD", 0.7))
 
     def _call_llm(self, prompt: str) -> str:
         """

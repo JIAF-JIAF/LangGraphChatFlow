@@ -16,6 +16,7 @@
 - 知识记忆（KnowledgeMemory）：存储长期知识（预留接口）
 """
 
+import os
 from typing import Optional, Dict, List
 
 
@@ -27,19 +28,14 @@ class BaseMemory:
     子类可覆盖这些方法实现具体的存储方案。
     
     属性：
-        config: 配置字典
         max_history_length: 最大历史记录长度
+
+    配置项（环境变量）：
+        MEMORY_MAX_HISTORY_LENGTH: 最大历史记录长度（默认10）
     """
 
-    def __init__(self, config: Optional[Dict] = None):
-        """
-        初始化记忆模块
-        
-        Args:
-            config: 配置参数（可选）
-        """
-        self.config = config or {}
-        self.max_history_length = self.config.get("max_history_length", 10)
+    def __init__(self):
+        self.max_history_length = int(os.getenv("MEMORY_MAX_HISTORY_LENGTH", 10))
 
     def get_history(self, session_id: str) -> List:
         """

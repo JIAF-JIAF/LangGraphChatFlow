@@ -24,14 +24,11 @@ class ConversationMemory(BaseMemory):
     使用 InMemoryChatMessageHistory 存储对话历史，支持多会话管理。
     """
 
-    def __init__(self, config: Optional[Dict] = None):
+    def __init__(self):
         """
         初始化对话记忆
-        
-        Args:
-            config: 配置参数（可选）
         """
-        super().__init__(config=config)
+        super().__init__()
         self._history_store: Dict[str, InMemoryChatMessageHistory] = {}
 
     def get_history(self, session_id: str) -> InMemoryChatMessageHistory:

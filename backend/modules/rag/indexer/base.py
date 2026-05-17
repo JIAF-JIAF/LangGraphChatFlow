@@ -34,25 +34,25 @@ class BaseIndexer:
     
     属性：
         ai_client: AI 客户端实例，用于调用嵌入模型
-        config: 配置字典
         text_splitter: 文本分割器，用于将长文档切分为片段
+
+    配置项（环境变量）：
+        INDEXER_CHUNK_SIZE: 文本分割块大小（默认500）
+        INDEXER_CHUNK_OVERLAP: 文本分割块重叠大小（默认50）
     """
 
-    def __init__(self, ai_client=None, config: Optional[Dict] = None):
+    def __init__(self, ai_client=None):
         """
         初始化索引器
         
         Args:
             ai_client: AI 客户端实例（用于嵌入）
-            config: 配置参数（可选）
         """
         self.ai_client = ai_client
-        self.config = config or {}
         
-        # 默认文本分割器配置
         self.text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=self.config.get("chunk_size", 500),
-            chunk_overlap=self.config.get("chunk_overlap", 50),
+            chunk_size=int(os.getenv("INDEXER_CHUNK_SIZE", 500)),
+            chunk_overlap=int(os.getenv("INDEXER_CHUNK_OVERLAP", 50)),
             length_function=len,
             add_start_index=True
         )

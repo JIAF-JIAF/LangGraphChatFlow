@@ -16,6 +16,7 @@
 - 过滤检索（FilteredRetriever）：支持元数据过滤
 """
 
+import os
 from typing import List, Optional, Dict
 from langchain_core.documents import Document
 
@@ -29,21 +30,22 @@ class BaseRetriever:
     
     属性：
         indexer: 索引器实例，用于访问向量数据库
-        config: 配置字典
         retrieval_kwargs: 检索参数（如 k：返回文档数量）
+
+    配置项（环境变量）：
+        RETRIEVER_K: 返回文档数量（默认3）
     """
 
-    def __init__(self, indexer=None, config: Optional[Dict] = None):
+    def __init__(self, indexer=None):
         """
         初始化检索器
         
         Args:
             indexer: 索引器实例
-            config: 配置参数（可选）
         """
         self.indexer = indexer
-        self.config = config or {}
-        self.retrieval_kwargs = self.config.get("retrieval_kwargs", {"k": 3})
+        k = int(os.getenv("RETRIEVER_K", 3))
+        self.retrieval_kwargs = {"k": k}
 
     def retrieve(self, query: str) -> List[Document]:
         """

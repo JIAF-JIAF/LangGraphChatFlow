@@ -28,17 +28,15 @@ class RAGWorkflow:
     - generate: 生成回答
     """
 
-    def __init__(self, llm_client=None, config: Optional[Dict] = None, verbose: bool = True):
+    def __init__(self, llm_client=None, verbose: bool = True):
         """
         初始化 RAG 业务模块
 
         Args:
             llm_client: LLM 客户端（用于路由器和生成器）
-            config: 配置字典
             verbose: 是否输出详细日志
         """
         self.llm_client = llm_client
-        self.config = config or {}
         self._verbose = verbose
         self._log("初始化 RAG 业务模块...")
 
@@ -48,22 +46,18 @@ class RAGWorkflow:
         for db_name in db_names:
             self.indexers[db_name] = ChromaIndexer(
                 ai_client=llm_client,
-                config=self.config.get("indexer", {}),
                 collection_name=db_name
             )
             self._log(f"已初始化知识库索引器: {db_name}")
 
         # 初始化检索器
-        self.retriever = SimpleVectorRetriever(config=self.config.get("retriever", {}))
+        self.retriever = SimpleVectorRetriever()
 
         # 初始化路由器（只初始化一次，复用）
-        self.router = LLMRouter(
-            llm_client=llm_client,
-            config=self.config.get("router", {})
-        )
+        self.router = LLMRouter(llm_client=llm_client)
 
         # 初始化记忆模块
-        self.memory = ConversationMemory(config=self.config.get("memory", {}))
+        self.memory = ConversationMemory()
 
         self._log("RAG 业务模块初始化完成")
 

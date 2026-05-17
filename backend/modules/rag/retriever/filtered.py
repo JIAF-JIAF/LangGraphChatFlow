@@ -2,6 +2,8 @@
 过滤检索器（预留接口）
 """
 
+import os
+import json
 from typing import List, Optional, Dict
 from langchain_core.documents import Document
 
@@ -12,12 +14,19 @@ class FilteredRetriever(BaseRetriever):
     """
     带过滤功能的检索器（预留接口）
     支持按元数据过滤
+
+    配置项（环境变量）：
+        RETRIEVER_FILTERS: JSON 格式的过滤条件（默认{}）
     """
 
-    def __init__(self, base_retriever: BaseRetriever, config: Optional[Dict] = None):
-        super().__init__(indexer=None, config=config)
+    def __init__(self, base_retriever: BaseRetriever):
+        super().__init__(indexer=None)
         self.base_retriever = base_retriever
-        self.filters = self.config.get("filters", {})
+        filters_str = os.getenv("RETRIEVER_FILTERS", "{}")
+        try:
+            self.filters = json.loads(filters_str)
+        except json.JSONDecodeError:
+            self.filters = {}
 
     def set_filters(self, filters: Dict):
         """
