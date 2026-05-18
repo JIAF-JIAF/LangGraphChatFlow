@@ -10,7 +10,13 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
-    open: true
+    open: '/db.html',
+    proxy: {
+      '/api': {
+        target: 'http://localhost:18000',
+        changeOrigin: true
+      }
+    }
   },
   build: {
     rollupOptions: {

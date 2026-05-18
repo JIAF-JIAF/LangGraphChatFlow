@@ -13,7 +13,7 @@ class AgentState(TypedDict):
     """
     Agent 状态定义
     
-    包含对话管理、任务规划、反思校验所需的所有状态字段。
+    包含对话管理、任务规划、反思校验、技能匹配所需的所有状态字段。
     """
     
     # ========== 基础字段 ==========
@@ -25,6 +25,9 @@ class AgentState(TypedDict):
     answer: str  # 生成的回答
     feeling: Dict[str, Any]  # 用户情绪状态 {"feeling": str, "score": int}
     uid: Optional[str]  # 用户 ID（用于钉钉等外部工具调用）
+    
+    # ========== 技能匹配字段 ==========
+    matched_skill: Optional[Dict[str, Any]]  # 匹配到的技能定义
     
     # ========== 任务规划字段 ==========
     subtasks: List[Dict[str, Any]]  # 子任务队列

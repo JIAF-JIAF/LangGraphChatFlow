@@ -17,13 +17,22 @@ from modules.ai_client import AIClient
 from modules.rag.indexer import ChromaIndexer
 from modules.document_loaders import DocumentLoaderFactory
 from knowledge_base import kb_manager
+from api.mcp_config_api import mcp_config_bp
+from api.skill_config_api import skill_config_bp
 
 load_dotenv()
 
 app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False
 app.config['JSONIFY_MIMETYPE'] = 'application/json; charset=utf-8'
+app.url_map.strict_slashes = False
 CORS(app)
+
+# 注册 MCP 配置 API 蓝图
+app.register_blueprint(mcp_config_bp)
+
+# 注册 Skill 配置 API 蓝图
+app.register_blueprint(skill_config_bp)
 
 # 全局变量
 ai_client = None

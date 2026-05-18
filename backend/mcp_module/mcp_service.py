@@ -21,6 +21,7 @@ from mcp.client.streamable_http import streamable_http_client
 import mcp_module.mcp_client as mcp_client
 import mcp_module.logger as logger
 import mcp_module.config as config
+from mcp_module.mcp_config_manager import mcp_config_manager
 
 
 def _normalize_tool_args(kwargs: Dict[str, Any]) -> Dict[str, Any]:
@@ -82,9 +83,11 @@ class MCPToolService:
         """
         all_tools = []
 
-        for server_config in config.MCP_SERVERS:
+        servers = mcp_config_manager.get_all_servers()
+        
+        for server_config in servers:
             server_url = server_config['url']
-            server_name = server_config['name']
+            server_name = server_config.get('name', '未知服务器')
 
             try:
                 logger.logger.info(f"连接 MCP 服务器 [{server_name}]: {server_url}")
@@ -94,7 +97,7 @@ class MCPToolService:
             except Exception as e:
                 logger.logger.error(f"连接 MCP 服务器 [{server_name}] 失败: {str(e)}")
 
-        logger.logger.info(f"共获取到 {len(all_tools)} 个工具（来自 {len(config.MCP_SERVERS)} 个服务器）")
+        logger.logger.info(f"共获取到 {len(all_tools)} 个工具（来自 {len(servers)} 个服务器）")
         return all_tools
 
     @staticmethod

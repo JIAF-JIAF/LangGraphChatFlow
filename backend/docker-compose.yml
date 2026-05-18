@@ -69,7 +69,7 @@ services:
         condition: service_started
     restart: unless-stopped
     ports:
-      - "18000:8000"
+      - "18000:5000"
     volumes:
       - ./db/chroma:/app/db/chroma
       - ./knowledge_base:/app/knowledge_base

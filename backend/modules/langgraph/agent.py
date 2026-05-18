@@ -1,16 +1,18 @@
 """
 LangGraph Agent 实现
 
-标准 LangGraph RAG 流程，增强版包含任务规划和反思校验：
+标准 LangGraph RAG 流程，增强版包含任务规划、反思校验和技能匹配：
 
-START → feeling_detect → router → ┌── 需要检索 ──→ retrieve → generate → plan
-                                 │                                        │
-                                 └── 不需要检索 ──→ plan ←─────────────────┘
-                                                      │
-                                                      ▼
-                                            execute_task → reflect → check_task_complete → ┌── 有更多任务 ──→ execute_task
-                                                          │                                     │
-                                                          └─────────────────────────────────────┴── 所有任务完成 ──→ call_model → END
+START → feeling_detect → skill_match → ┌── 匹配到技能 ──→ plan(使用技能) → execute_task → ...
+                                       │                                    │
+                                       └── 未匹配技能 ──→ router → ┌── 需要检索 ──→ retrieve → generate → plan
+                                                               │                                        │
+                                                               └── 不需要检索 ──→ plan ←─────────────────┘
+                                                                                    │
+                                                                                    ▼
+                                                                  execute_task → reflect → check_task_complete → ┌── 有更多任务 ──→ execute_task
+                                                                                │                                     │
+                                                                                └─────────────────────────────────────┴── 所有任务完成 ──→ call_model → END
 
 采用 LangGraph 标准会话管理：
 - 使用 Checkpointer 进行状态持久化
@@ -18,6 +20,7 @@ START → feeling_detect → router → ┌── 需要检索 ──→ retriev
 - 在 call_model 节点中更新对话历史
 - 支持感情侦测，动态更新 prompt
 - 支持任务规划和反思校验
+- 支持技能匹配：根据用户查询匹配专业技能
 """
 
 import time
@@ -26,6 +29,7 @@ from langgraph.graph import StateGraph, END, START
 from langchain_core.messages import HumanMessage, AIMessage
 
 from .state import AgentState
+from .task_generators import TaskGeneratorChain
 from modules.prompt import create_prompt
 
 
@@ -40,6 +44,7 @@ class LangGraphAgent:
     - 支持感情侦测，动态更新 prompt（可替换）
     - 支持任务规划：将复杂需求拆分为子任务（可替换）
     - 支持反思校验：验证回答质量，自动重试（可替换）
+    - 支持技能匹配：根据用户查询匹配专业技能（可替换）
 
     设计理念：
     - 所有核心组件均通过构造函数注入，内部不感知具体实现
@@ -55,6 +60,7 @@ class LangGraphAgent:
         feeling_detector: Any,
         task_planner: Any,
         reflection_checker: Any,
+        skill_manager: Any = None,
         verbose: bool = True,
         max_retries: int = 3
     ):
@@ -68,6 +74,7 @@ class LangGraphAgent:
             feeling_detector: 感情侦测器实例（可替换），需实现 detect(text, detailed) 方法
             task_planner: 任务规划器实例（可替换），需实现 plan(query, context) 方法
             reflection_checker: 反思校验器实例（可替换），需实现 reflect(query, answer, documents) 方法
+            skill_manager: 技能管理器实例（可替换），需实现 match_skill(query) 和 generate_skill_prompt(skill, query) 方法
             verbose: 是否输出详细日志
             max_retries: 最大重试次数（默认3次）
 
@@ -78,6 +85,7 @@ class LangGraphAgent:
         """
         self._agent = agent
         self._rag_workflow = rag_workflow
+        self._skill_manager = skill_manager
         self._checkpointer = checkpointer
         self._feeling_detector = feeling_detector
         self._task_planner = task_planner
@@ -117,6 +125,28 @@ class LangGraphAgent:
         self._log(f"[节点: feeling_detect] 情绪分析结果: {feeling}")
         
         return {"feeling": feeling}
+
+    def _skill_match_node(self, state: AgentState) -> AgentState:
+        """
+        技能匹配节点：根据用户查询匹配专业技能
+
+        Args:
+            state: 当前状态（包含 query）
+
+        Returns:
+            更新后的状态（包含 matched_skill）
+        """
+        query = state["query"]
+        self._log(f"[节点: skill_match] 开始技能匹配，查询: {query[:30]}...")
+        
+        matched_skill = self._skill_manager.match_skill(query)
+        
+        if matched_skill:
+            self._log(f"[节点: skill_match] 匹配到技能: {matched_skill['name']} - {matched_skill['title']}")
+        else:
+            self._log(f"[节点: skill_match] 未匹配到技能，使用默认流程")
+        
+        return {"matched_skill": matched_skill}
 
     def _router_node(self, state: AgentState) -> AgentState:
         """
@@ -183,39 +213,20 @@ class LangGraphAgent:
         """
         规划节点：将复杂需求拆分为子任务
 
+        使用责任链模式处理任务生成，支持灵活扩展。
+
         Args:
-            state: 当前状态（包含 query, documents, answer, rag_success）
+            state: 当前状态（包含 query, documents, answer, rag_success, matched_skill）
 
         Returns:
             更新后的状态（包含子任务队列和初始状态）
         """
         query = state["query"]
-        documents = state.get("documents", [])
-        rag_answer = state.get("answer", "")
-        rag_success = state.get("rag_success", False)
         self._log(f"[节点: plan] 开始任务规划")
         
-        # 如果 RAG 已经成功生成了完整回答，创建任务让 Agent 润色
-        if rag_success:
-            self._log(f"[节点: plan] RAG 已生成完整回答，创建润色任务")
-            subtasks = [{
-                "task_id": "task_1",
-                "task_description": f"请对以下内容进行润色和优化，使其更自然流畅：\n\n{rag_answer}",
-                "dependencies": [],
-                "status": "pending",
-                "result": ""
-            }]
-        else:
-            # 构建上下文
-            context_parts = []
-            if rag_answer:
-                context_parts.append(f"初步分析结果：{rag_answer}")
-            if documents:
-                context_parts.append("\n".join([doc.page_content[:500] for doc in documents]))
-            context = "\n\n".join(context_parts)
-            
-            # 生成子任务
-            subtasks = self._task_planner.plan(query, context)
+        # 使用责任链模式生成子任务
+        chain = TaskGeneratorChain.build()
+        subtasks = chain.handle(state, self._task_planner, query)
         
         self._log(f"[节点: plan] 生成 {len(subtasks)} 个子任务")
         for i, task in enumerate(subtasks):
@@ -368,6 +379,25 @@ class LangGraphAgent:
             "retry_count": 0,
             "is_reflection_passed": False
         }
+
+    def _should_use_skill(self, state: AgentState) -> Literal["plan", "router"]:
+        """
+        条件路由：判断是否使用匹配到的技能
+
+        Args:
+            state: 当前状态（包含 matched_skill）
+
+        Returns:
+            "plan" 或 "router"，决定下一步流向
+        """
+        matched_skill = state.get("matched_skill")
+        if matched_skill:
+            decision = "plan"
+            self._log(f"[条件路由] 匹配到技能，直接进入任务规划")
+        else:
+            decision = "router"
+            self._log(f"[条件路由] 未匹配到技能，进入检索路由")
+        return decision
 
     def _should_retrieve(self, state: AgentState) -> Literal["retrieve", "plan"]:
         """
@@ -526,14 +556,16 @@ class LangGraphAgent:
         构建增强版状态图
 
         状态图结构：
-        START -> feeling_detect -> router
-                            router -> retrieve -> generate -> plan
-                            router -> plan
-                            plan -> execute_task -> reflect -> should_retry
-                            reflect -> retry -> execute_task
-                            reflect -> continue -> check_task_complete
-                            check_task_complete -> execute_task / call_model
-                            call_model -> END
+        START -> feeling_detect -> skill_match -> ┌── 匹配到技能 ──→ plan(使用技能) → execute_task → ...
+                                                 │                                    │
+                                                 └── 未匹配技能 ──→ router → ┌── 需要检索 ──→ retrieve → generate → plan
+                                                                         │                                        │
+                                                                         └── 不需要检索 ──→ plan ←─────────────────┘
+                                                                                              │
+                                                                                              ▼
+                                                                                   execute_task → check_task_complete → ┌── 有更多任务 ──→ execute_task
+                                                                                                                 │
+                                                                                                                 └── 所有任务完成 ──→ call_model → END
         """
         self._log("开始构建增强版 LangGraph 状态图...")
         
@@ -541,6 +573,7 @@ class LangGraphAgent:
 
         # 添加节点
         self._graph.add_node("feeling_detect", self._feeling_detect_node)
+        self._graph.add_node("skill_match", self._skill_match_node)
         self._graph.add_node("router", self._router_node)
         self._graph.add_node("retrieve", self._retrieve_node)
         self._graph.add_node("generate", self._generate_node)
@@ -550,9 +583,16 @@ class LangGraphAgent:
         self._graph.add_node("check_task_complete", self._check_task_complete_node)
         self._graph.add_node("call_model", self._call_model_node)
 
-        # 基础流程
+        # 基础流程：情绪检测 -> 技能匹配
         self._graph.add_edge(START, "feeling_detect")
-        self._graph.add_edge("feeling_detect", "router")
+        self._graph.add_edge("feeling_detect", "skill_match")
+
+        # 技能匹配分支：匹配到技能直接规划，否则进入检索路由
+        self._graph.add_conditional_edges(
+            "skill_match",
+            self._should_use_skill,
+            {"plan": "plan", "router": "router"}
+        )
 
         # 路由分支：检索或直接规划
         self._graph.add_conditional_edges(
