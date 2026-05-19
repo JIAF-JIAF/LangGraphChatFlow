@@ -1,7 +1,6 @@
 .agent-config {
   display: flex;
   height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 .message {
@@ -42,114 +41,109 @@
 .main-content {
   display: flex;
   width: 100%;
-  max-width: 1400px;
-  margin: 20px auto;
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  overflow: hidden;
+  height: 100%;
 }
 
 .sidebar {
-  width: 280px;
-  background: #f8fafc;
-  border-right: 1px solid #e2e8f0;
+  width: 220px;
+  background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
   display: flex;
   flex-direction: column;
 }
 
 .sidebar-header {
   padding: 20px;
-  border-bottom: 1px solid #e2e8f0;
-  background: white;
+  text-align: center;
 }
 
 .logo {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+  justify-content: center;
 }
 
 .logo-icon {
-  font-size: 28px;
+  font-size: 24px;
 }
 
 .logo-text {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
-  color: #1e293b;
+  color: white;
 }
 
 .db-section {
   flex: 1;
-  padding: 16px;
+  padding: 12px;
   overflow-y: auto;
 }
 
 .db-section h3 {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
-  color: #64748b;
-  margin-bottom: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 8px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  padding: 0 8px;
 }
 
 .btn {
-  padding: 10px 20px;
+  padding: 10px 16px;
   border: none;
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: 6px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: rgba(255, 255, 255, 0.2);
   color: white;
   width: 100%;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .btn-primary:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .btn-secondary {
-  background: #e2e8f0;
-  color: #475569;
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .btn-secondary:hover {
-  background: #cbd5e1;
+  background: rgba(255, 255, 255, 0.25);
 }
 
 .db-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
 .db-item {
   display: flex;
   align-items: center;
-  padding: 12px;
-  background: white;
-  border-radius: 8px;
+  padding: 10px 12px;
+  background: transparent;
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
-  border: 2px solid transparent;
+  border: none;
 }
 
 .db-item:hover {
-  background: #f1f5f9;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .db-item.selected {
-  border-color: #667eea;
-  background: #f0f4ff;
+  background: white;
 }
 
 .db-info {
@@ -159,23 +153,36 @@
 
 .db-name {
   font-weight: 600;
-  color: #1e293b;
-  font-size: 14px;
-  margin-bottom: 4px;
+  font-size: 13px;
+  margin-bottom: 3px;
+}
+
+.db-item:not(.selected) .db-name {
+  color: white;
+}
+
+.db-item.selected .db-name {
+  color: #667eea;
 }
 
 .db-meta {
-  font-size: 12px;
-  color: #94a3b8;
+  font-size: 11px;
   display: flex;
   align-items: center;
   gap: 4px;
 }
 
+.db-item:not(.selected) .db-meta {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.db-item.selected .db-meta {
+  color: #94a3b8;
+}
+
 .btn-delete {
   background: transparent;
   border: none;
-  color: #94a3b8;
   padding: 4px 8px;
   border-radius: 4px;
   cursor: pointer;
@@ -183,12 +190,20 @@
   transition: all 0.2s ease;
 }
 
+.db-item:not(.selected) .btn-delete {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.db-item.selected .btn-delete {
+  color: #94a3b8;
+}
+
 .db-item:hover .btn-delete {
   opacity: 1;
 }
 
 .btn-delete:hover {
-  background: #fee2e2;
+  background: rgba(239, 68, 68, 0.1);
   color: #ef4444;
 }
 
@@ -237,28 +252,25 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 24px;
-  border-bottom: 1px solid #e2e8f0;
+  padding: 16px 20px;
   background: white;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .tabs {
   display: flex;
-  gap: 4px;
-  background: #f1f5f9;
-  padding: 4px;
-  border-radius: 8px;
+  gap: 8px;
 }
 
 .tab {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
+  gap: 6px;
+  padding: 8px 16px;
   background: transparent;
   border: none;
-  border-radius: 6px;
-  font-size: 14px;
+  border-radius: 4px;
+  font-size: 13px;
   font-weight: 500;
   color: #64748b;
   cursor: pointer;
@@ -266,44 +278,43 @@
 }
 
 .tab:hover {
-  background: #e2e8f0;
+  background: #f5f5f5;
 }
 
 .tab.active {
-  background: white;
-  color: #667eea;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
 }
 
 .tab-icon {
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .stats-bar {
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 13px;
-  color: #64748b;
+  font-size: 12px;
+  color: #94a3b8;
 }
 
 .stat-divider {
-  color: #cbd5e1;
+  color: #e2e8f0;
 }
 
 .tab-content {
   flex: 1;
-  padding: 24px;
+  padding: 20px;
   overflow-y: auto;
-  background: #f8fafc;
+  background: #fafafa;
 }
 
 .section-card {
   background: white;
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  border: 1px solid #e8e8e8;
 }
 
 .section-header {
@@ -328,12 +339,13 @@
 }
 
 .upload-area {
-  border: 2px dashed #cbd5e1;
-  border-radius: 12px;
-  padding: 32px;
+  border: 2px dashed #d1d5db;
+  border-radius: 8px;
+  padding: 28px;
   text-align: center;
   transition: all 0.2s ease;
   cursor: pointer;
+  background: #fdfdfd;
 }
 
 .upload-area:hover {
@@ -469,10 +481,10 @@
 .document-item {
   display: flex;
   align-items: center;
-  padding: 12px;
-  background: #f8fafc;
-  border-radius: 8px;
-  gap: 12px;
+  padding: 10px 12px;
+  background: #f8f8f8;
+  border-radius: 6px;
+  gap: 10px;
 }
 
 .doc-icon {
@@ -565,10 +577,10 @@
 .mcp-item {
   display: flex;
   align-items: center;
-  padding: 16px;
-  background: #f8fafc;
-  border-radius: 8px;
-  gap: 12px;
+  padding: 12px 14px;
+  background: #f8f8f8;
+  border-radius: 6px;
+  gap: 10px;
 }
 
 .mcp-info {
@@ -669,11 +681,11 @@
 .skill-item {
   display: flex;
   align-items: center;
-  padding: 16px;
-  background: #fffbeb;
-  border: 1px solid #fef3c7;
-  border-radius: 8px;
-  gap: 12px;
+  padding: 12px 14px;
+  background: #fefbf3;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+  gap: 10px;
 }
 
 .skill-info {

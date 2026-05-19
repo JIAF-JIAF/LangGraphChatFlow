@@ -19,6 +19,7 @@
 - **情绪感知**: 基于关键词规则的情绪分析（default、upbeat、angry、cheerful、depressed、friendly），动态更新 Prompt
 - **FewShot 示例学习**: 基于 LengthBasedExampleSelector 的动态示例选择
 - **智能任务规划**: 基于 LLM 的问题难度评估（1-5级），自动生成多步骤执行计划，支持工具调用与任务规划的深度整合
+- **技能系统**: 基于 SKILL.md 的技能匹配和执行引擎，支持数据分析、绘图、旅行规划等专业技能
 - **前后端分离**: React + Vite 前端 + Flask 后端
 - **模块化设计**: 清晰的后端架构，易于扩展
 - **LangGraph 集成**: 基于状态图的工作流编排，支持持久化检查点
@@ -44,7 +45,20 @@ chart-flow-longchain/
 │   │   ├── langgraph/         # LangGraph 模块（新版）
 │   │   │   ├── __init__.py
 │   │   │   ├── agent.py       # LangGraph Agent（状态图定义）
-│   │   │   └── state.py       # 状态定义
+│   │   │   ├── state.py       # 状态定义
+│   │   │   ├── planner/       # 任务规划器
+│   │   │   │   ├── __init__.py
+│   │   │   │   └── task_planner.py
+│   │   │   ├── reflection/    # 反思校验器
+│   │   │   │   ├── __init__.py
+│   │   │   │   └── reflection_checker.py
+│   │   │   └── task_generators/ # 任务生成器
+│   │   │       ├── __init__.py
+│   │   │       ├── base.py
+│   │   │       ├── chain.py
+│   │   │       ├── default_handler.py
+│   │   │       ├── rag_refine_handler.py
+│   │   │       └── skill_handler.py
 │   │   ├── feeling/           # 情绪感知模块
 │   │   │   ├── __init__.py
 │   │   │   └── detector.py    # 情绪检测器
@@ -85,6 +99,15 @@ chart-flow-longchain/
 │   │       ├── __init__.py
 │   │       ├── langchain.py
 │   │       └── rate_limiter.py
+│   │   └── skill/              # 技能系统模块
+│   │       ├── __init__.py
+│   │       ├── skill_manager.py
+│   │       ├── skill_runner.py
+│   │       ├── skill_executor.py
+│   │       ├── skill_engine.py
+│   │       ├── installer.py
+│   │       ├── github_fetcher.py
+│   │       └── md_parser.py
 │   ├── mcp_module/            # MCP 模块（工具服务）
 │   │   ├── __init__.py         # MCP 模块初始化
 │   │   ├── config.py           # MCP 配置常量
@@ -119,6 +142,18 @@ chart-flow-longchain/
 │       ├── factory.py
 │       ├── memory.py
 │       └── redis.py
+│   └── skills/                 # 技能库（SKILL.md 格式）
+│       ├── data_analysis/      # 数据分析技能
+│       │   └── SKILL.md
+│       ├── drawio/             # 绘图技能
+│       │   ├── SKILL.md
+│       │   ├── styles/
+│       │   ├── scripts/
+│       │   └── references/
+│       ├── tldraw/             # tldraw 技能
+│       │   └── SKILL.md
+│       └── trip_plan/          # 旅行规划技能
+│           └── SKILL.md
 
 ├── frontend/                   # React 前端 (Vite)
 │   ├── src/
@@ -155,12 +190,25 @@ chart-flow-longchain/
 
 3. **工作流编排**: 支持多节点路由、条件分支、循环等复杂工作流
 
-### 状态图结构
+### 状态图结构（增强版）
 
 ```
-START → feeling_detect → router → ┌── 需要检索 ──→ retrieve → generate → call_model → END
-                                  │
-                                  └── 不需要检索 ──→ call_model → END
+START → feeling_detect → skill_match → ┌── 匹配到技能 ──→ load_skill → execute_step → ┌── 成功 ──→ check_step_complete → ┌── 有下一步 ──→ execute_step
+                                      │                                              │                           │
+                                      │                                              │                           └── 完成 ──→ summarize → END
+                                      │                                              │
+                                      │                                              └── 失败 → ┌── 可重试 ──→ execute_step
+                                      │                                                             │
+                                      │                                                             └── 不可重试 ──→ error_handling → END
+                                      │
+                                      └── 未匹配技能 ──→ router → ┌── 需要检索 ──→ retrieve → generate → plan
+                                                              │                                        │
+                                                              └── 不需要检索 ──→ plan ←─────────────────┘
+                                                                           │
+                                                                           ▼
+                                                      execute_task → reflect → check_task_complete → ┌── 有更多任务 ──→ execute_task
+                                                                    │                                     │
+                                                                    └─────────────────────────────────────┴── 所有任务完成 ──→ call_model → END
 ```
 
 ### 核心节点
@@ -168,9 +216,18 @@ START → feeling_detect → router → ┌── 需要检索 ──→ retriev
 | 节点 | 职责 | 说明 |
 |------|------|------|
 | feeling_detect | 情绪检测 | 分析用户输入的情绪状态（default、upbeat、angry、cheerful、depressed、friendly） |
+| skill_match | 技能匹配 | 根据关键词匹配专业技能（数据分析、绘图、旅行规划等） |
+| load_skill | 加载技能 | 根据技能名称加载 SKILL.md 定义 |
+| execute_step | 执行步骤 | 执行技能的单个步骤（调用工具、处理逻辑） |
+| check_step_complete | 检查步骤完成 | 判断技能是否还有下一步骤 |
+| summarize | 结果汇总 | 汇总技能所有步骤结果，生成最终回复 |
+| error_handling | 错误处理 | 处理技能执行失败，返回友好提示 |
 | router | 智能路由 | 判断是否需要检索、选择知识库 |
 | retrieve | 文档检索 | 从向量数据库检索相关文档（支持查询扩展） |
 | generate | 生成回答 | 基于检索文档生成 RAG 结果 |
+| plan | 任务规划 | 将复杂问题拆分为有序子任务序列 |
+| execute_task | 任务执行 | 执行单个子任务 |
+| check_task_complete | 任务完成检查 | 判断是否有更多任务需要执行 |
 | call_model | 模型调用 | 调用 LLM 生成最终回答，更新对话历史 |
 
 ### 状态定义
@@ -184,6 +241,10 @@ class AgentState(TypedDict):
     need_retrieve: bool           # 是否需要检索
     documents: List[Document]     # 检索到的文档
     answer: str                   # 生成的回答
+    tasks: List[dict]             # 任务列表（任务规划结果）
+    current_task_index: int       # 当前执行的任务索引
+    skill: Optional[str]          # 匹配到的技能名称
+    reflection_result: dict       # 反思校验结果
 ```
 
 ## 情绪感知
@@ -225,6 +286,126 @@ MOODS = {
          - feeling: 情绪类型
          - score: 情绪分值 (1-10)
 ```
+
+## 智能任务规划
+
+系统支持基于 LLM 的智能任务规划，根据问题难度自动生成多步骤执行计划。
+
+### 难度等级划分
+
+| 难度等级 | 描述 | 任务数量 | 示例 |
+|---------|------|---------|------|
+| 1级 | 简单事实查询 | 1个任务 | "北京今天天气怎么样？" |
+| 2级 | 需要简单推理 | 1个任务 | "明天去上海出差需要带什么？" |
+| 3级 | 需要多步骤分析 | 2个任务 | "帮我分析本月销售数据" |
+| 4级 | 需要综合多领域知识 | 3个任务 | "制定下周旅行计划" |
+| 5级 | 需要创造性解决方案 | 4个任务 | "设计一个新产品推广方案" |
+
+### 任务规划流程
+
+```
+用户查询 → 难度评估 → ┌── 简单(1-2级) ──→ 直接回答
+                      │
+                      └── 复杂(3-5级) ──→ 任务拆分 → 有序子任务列表
+```
+
+### 配置项
+
+| 环境变量 | 默认值 | 说明 |
+|---------|-------|------|
+| TASK_PLANNER_MAX_TASKS | 5 | 最大子任务数量 |
+| TASK_PLANNER_MIN_TASKS | 1 | 最小子任务数量 |
+| TASK_PLANNER_ENABLE | true | 是否启用任务规划 |
+```
+
+## 技能系统
+
+系统支持基于 SKILL.md 的技能匹配和执行引擎，提供专业领域的深度服务。
+
+### 技能库结构
+
+```
+backend/skills/
+├── data_analysis/      # 数据分析技能
+│   └── SKILL.md
+├── drawio/             # 绘图技能
+│   ├── SKILL.md
+│   ├── styles/         # 样式配置
+│   ├── scripts/        # 辅助脚本
+│   └── references/     # 参考文档
+├── tldraw/             # tldraw 绘图技能
+│   └── SKILL.md
+└── trip_plan/          # 旅行规划技能
+    └── SKILL.md
+```
+
+### 技能定义格式 (SKILL.md)
+
+```markdown
+# 技能名称
+
+## 基本信息
+- **名称**: skill_name
+- **标题**: 技能显示名称
+- **版本**: 1.0.0
+- **作者**: AI Team
+
+## 技能描述
+技能的详细描述...
+
+## 触发条件
+### 关键词触发
+- 关键词1
+- 关键词2
+
+### 难度等级
+3
+
+## 执行流程
+### 步骤一：步骤名称
+- **目标**: 步骤目标
+- **操作**: 执行操作
+- **输入**: 输入数据
+- **输出**: 输出结果
+- **工具**: [tool1, tool2]
+```
+
+### 内置技能
+
+| 技能名称 | 功能描述 | 触发关键词 |
+|---------|---------|-----------|
+| data_analysis | 数据分析、生成可视化报告 | 分析、报告、数据、统计、趋势 |
+| drawio | 绘制流程图、架构图 | 画图、流程图、架构图、设计 |
+| tldraw | 协作绘图、白板 | 白板、绘图、协作 |
+| trip_plan | 旅行规划、行程安排 | 旅行、旅游、行程、攻略 |
+
+### 技能匹配流程
+
+```
+用户查询 → 关键词匹配 → ┌── 匹配成功 ──→ 执行技能 → 返回结果
+                        │
+                        └── 匹配失败 ──→ 继续常规流程
+```
+
+### skill_runner 状态图
+
+```
+START → load_skill → execute_step → ┌── 步骤成功 ──→ check_step_complete → ┌── 有下一步 ──→ execute_step
+                                    │                                      │
+                                    │                                      └── 所有步骤完成 ──→ summarize → END
+                                    │
+                                    └── 步骤失败 → ┌── 可重试 ──→ execute_step
+                                                   │
+                                                   └── 不可重试 ──→ error_handling → END
+```
+
+| 节点 | 职责 | 说明 |
+|------|------|------|
+| load_skill | 加载技能 | 根据技能名称加载 SKILL.md 定义 |
+| execute_step | 执行步骤 | 执行当前步骤（调用工具、处理逻辑） |
+| check_step_complete | 检查步骤完成 | 判断是否还有下一步骤 |
+| summarize | 结果汇总 | 汇总所有步骤结果，生成最终回复 |
+| error_handling | 错误处理 | 处理执行失败，返回友好提示 |
 
 ## 模块化 RAG 框架
 
@@ -789,6 +970,10 @@ BaseRouter.should_retrieve() # 返回 True
 - [x] 查询扩展功能
 - [x] LangGraph 架构迁移
 - [x] 状态持久化检查点
+- [x] 智能任务规划（Task Planner）
+- [x] 反思校验器（Reflection Checker）
+- [x] 技能系统（Skill System）
+- [x] 技能匹配与执行引擎
 
 ### 检查点存储
 
@@ -937,9 +1122,9 @@ DINGTALK_CLIENT_SECRET=your_app_secret
 
 #### 核心功能展示
 
-| 智能问答 | 日程管理 | 待办事项 | 多轮对话 |
-|---------|---------|---------|---------|
-| ![智能问答测试](resources/qa_test.png) | ![日程创建测试](resources/schedule_test.png) | ![待办创建测试](resources/todo_test.png) | ![多轮对话测试](resources/chat_test.png) |
+| 智能问答与知识库(RAG) | 日程管理(MCP) | 工具调用与任务规划 |
+|---------------------|--------------|------------------|
+| ![智能问答与知识库(RAG)](resources/qa_test.png) | ![日程创建测试](resources/todo_test.png) | ![天气查询与旅行计划](resources/too_taskl.png) |
 
 #### 复杂任务规划展示
 
@@ -947,13 +1132,11 @@ DINGTALK_CLIENT_SECRET=your_app_secret
 |---------|---------|---------|
 | ![任务规划](resources/complex_task_2.png) | ![任务执行](resources/complex_task_3.png) | ![结果汇总](resources/complex_task_4.png) |
 
-#### 工具调用与任务规划结合
+#### 技能使用展示
 
-系统支持工具调用与任务规划的深度整合，例如结合天气查询制定旅行计划：
-
-| 天气查询 | 旅行计划 |
-|---------|---------|
-| ![天气查询](resources/too_taskl.png) | ![旅行计划](resources/complex_task_5.png) |
+| 技能触发 | 步骤执行 | 结果生成 |
+|---------|---------|---------|
+| ![技能触发](resources/tldraw%20-%201.png) | ![步骤执行](resources/tldraw%20-%202.png) | ![结果生成](resources/tldraw%20-%203.png) |
 
 #### 向量库管理
 
