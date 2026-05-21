@@ -28,7 +28,7 @@ from typing import Optional, Dict, Any, List, Literal
 from langgraph.graph import StateGraph, END, START
 from langchain_core.messages import HumanMessage, AIMessage
 
-from .state import AgentState
+from .states import AgentState, create_initial_state
 from .task_generators import TaskGeneratorChain
 
 
@@ -222,7 +222,7 @@ class LangGraphAgent:
             state: 当前状态
 
         Returns:
-            更新后的状态（只需返回 documents）
+            更新后的状态（documents 使用 list_append，返回增量）
         """
         query = state["query"]
         self._log(f"[节点: retrieve] 开始执行")
@@ -232,6 +232,7 @@ class LangGraphAgent:
         documents = self._rag_workflow.retrieve(query)
         self._log(f"[节点: retrieve] 检索到 {len(documents)} 个文档")
         
+        # 使用 list_append reducer，返回新文档（增量）
         return {"documents": documents}
 
     def _generate_node(self, state: AgentState) -> AgentState:
@@ -380,7 +381,7 @@ class LangGraphAgent:
         return {
             "is_reflection_passed": is_passed,
             "reflection_feedback": feedback,
-            "reflection_suggestions": suggestions,
+            "reflection_suggestions": suggestions,  # 使用 list_append，返回新建议（增量）
             "reflection_confidence": confidence,
             "retry_count": retry_count + 1 if not is_passed else retry_count,
             "retry_task_idx": current_idx if not is_passed else -1
@@ -534,7 +535,7 @@ class LangGraphAgent:
             state: 当前状态（包含 query, answer, chat_history, feeling）
 
         Returns:
-            更新后的状态（包含最终回答和更新后的对话历史）
+            更新后的状态（包含最终回答和新消息增量）
         """
         query = state["query"]
         answer = state["answer"]
@@ -551,40 +552,15 @@ class LangGraphAgent:
         
         self._log(f"[节点: call_model] 执行完成: {answer[:50]}...")
         
-        result_state = self._update_chat_history(state, query, answer)
-        result_state["answer"] = answer
-        result_state["feeling"] = feeling
-        
-        return result_state
-
-    def _update_chat_history(self, state: AgentState, query: str, answer: str) -> AgentState:
-        """
-        统一更新对话历史（带裁剪功能）
-
-        Args:
-            state: 当前状态
-            query: 用户查询
-            answer: 生成的回答
-
-        Returns:
-            更新后的状态（包含新的对话历史）
-        """
-        if query and answer:
-            self._log(f"[_update_chat_history] 自动更新对话历史")
-            chat_history = state.get("chat_history", [])
-            new_history = chat_history + [
+        # 返回增量更新（add_messages reducer 会自动追加）
+        return {
+            "answer": answer,
+            "feeling": feeling,
+            "chat_history": [
                 HumanMessage(content=query),
                 AIMessage(content=answer)
             ]
-            
-            # 裁剪对话历史，最多保留 10 轮对话（20 条消息）
-            max_history_messages = 20
-            if len(new_history) > max_history_messages:
-                new_history = new_history[-max_history_messages:]
-                self._log(f"[_update_chat_history] 对话历史已裁剪，当前长度: {len(new_history)}")
-            
-            return {"chat_history": new_history}
-        return state
+        }
 
     def _build_graph(self):
         """
@@ -664,49 +640,29 @@ class LangGraphAgent:
 
     def invoke(self, query: str, session_id: str = "default", uid: Optional[str] = None) -> Dict[str, Any]:
         """
-        执行 Agent（标准 LangGraph 调用方式）
-
-        Args:
-            query: 用户查询
-            session_id: 会话ID
-            uid: 用户ID
-
-        Returns:
-            包含回答和状态信息的字典
+        执行 Agent（LangGraph 1.0+ 官方标准调用方式）
+        无论是否有历史，永远只传增量！
         """
         self._log(f"=== 开始处理请求 ===")
         self._log(f"会话ID: {session_id}")
         self._log(f"用户ID: {uid}")
         self._log(f"用户查询: {query}")
 
-        initial_state: AgentState = {
+        # ========================
+        # ✅ 正确：永远只传增量！
+        # LangGraph 会自动从 Checkpointer 恢复历史状态
+        # ========================
+        input_state = {
             "query": query,
             "session_id": session_id,
-            "chat_history": [],
-            "need_retrieve": False,
-            "documents": [],
-            "answer": "",
-            "feeling": {"feeling": "default", "score": 5},
             "uid": uid,
-            "matched_skill": None,
-            "skill_executed": False,
-            "skill_name": "",
-            "skill_success": False,
-            "skill_steps": [],
-            "subtasks": [],
-            "current_task_idx": 0,
-            "is_task_completed": False,
-            "is_reflection_passed": False,
-            "reflection_feedback": "",
-            "reflection_suggestions": [],
-            "reflection_confidence": 0.0,
-            "retry_count": 0,
-            "max_retries": self._max_retries,
-            "retry_task_idx": -1
         }
 
+        self._log(f"传入增量状态: {list(input_state.keys())}")
+
+        # 调用 LangGraph
         result = self._graph.invoke(
-            initial_state,
+            input_state,  # ✅ 只传增量
             config={"configurable": {"thread_id": session_id}}
         )
 
@@ -719,7 +675,7 @@ class LangGraphAgent:
             "skill_executed": result.get("skill_executed", False),
             "skill_name": result.get("skill_name", ""),
             "skill_success": result.get("skill_success", False),
-            "skill_steps": result.get("skill_steps", [])
+            "skill_steps": result.get("skill_steps", []),
         }
 
     def get_graph(self):

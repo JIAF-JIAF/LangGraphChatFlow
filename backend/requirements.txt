@@ -1,23 +1,24 @@
-flask==3.0.0
-flask-cors==4.0.0
-flask-limiter==3.5.0
+flask>=3.0.0
+flask-cors==6.0.1
+flask-limiter>=3.5.0
 openai>=1.40.0
-python-dotenv==1.0.0
-requests==2.31.0
-numpy
+python-dotenv>=1.0.0
+requests>=2.31.0
+numpy>=1.26
 pypdf>=6.0.0
-python-docx
+python-docx==1.1.2
 
-langchain>=0.3.0
-langchain-openai>=0.2.0
-langchain-core>=0.3.0
-langchain-community>=0.3.0
-langchain-text-splitters>=0.3.0
+langchain-classic>=0.3.0
+langchain>=1.0.0
+langchain-openai>=1.0.0
+langchain-core>=1.0.0
+langchain-community>=0.4.0
+langchain-text-splitters>=1.0.0
 langchain-chroma>=0.1.0
 chromadb>=0.5.0
 
-# LangGraph (与 LangChain 共存)
-langgraph>=0.2.0
+# LangGraph (1.0+ 新版本)
+langgraph>=1.0.0
 
 dashscope>=1.20.0
 
@@ -28,10 +29,10 @@ pymilvus>=2.4.0
 mcp>=1.0.0
 
 # 重排序模型
-sentence-transformers>=2.2.0
+sentence-transformers==3.2.0
 
 # Redis 支持
-redis>=5.0.0
+redis>=7.2.0
 
 # 钉钉 Stream API
 dingtalk-stream>=0.24.3

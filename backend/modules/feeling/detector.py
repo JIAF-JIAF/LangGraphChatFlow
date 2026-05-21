@@ -178,8 +178,8 @@ class FeelingDetector:
         if not text or not isinstance(text, str):
             return {"feeling": "default", "score": 5}
 
-        rule_result = self._analyze_by_rules(text)
-        if rule_result: return rule_result
+        # rule_result = self._analyze_by_rules(text)
+        # if rule_result: return rule_result
 
         llm_result = self._analyze_by_llm(text)
         if llm_result: return llm_result

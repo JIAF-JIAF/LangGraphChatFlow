@@ -66,10 +66,18 @@ class DingTalkChatbotHandler(ChatbotHandler):
             message = ChatbotMessage.from_dict(callback.data)
 
             # 打印 message 对象的所有属性
-            print(f"message对象属性: {dir(message)}", flush=True)
             print(f"message.sender_id: {message.sender_id}", flush=True)
             print(f"message.sender_staff_id: {getattr(message, 'sender_staff_id', 'N/A')}", flush=True)
             print(f"message.sender_nick: {getattr(message, 'sender_nick', 'N/A')}", flush=True)
+
+            # 获取消息 ID（唯一标识）
+            msg_id = message.message_id
+            print(f"[钉钉消息] 消息ID(msgId): {msg_id}", flush=True)
+
+            # 去重检查 - 如果已处理过，直接返回
+            if msg_id in processed_messages:
+                print(f"[钉钉消息] 消息已处理，跳过: {msg_id}", flush=True)
+                return AckMessage.STATUS_OK, 'OK'
 
             # 获取用户 ID - 使用 senderStaffId
             uid = getattr(message, 'sender_staff_id', message.sender_id)
@@ -83,13 +91,25 @@ class DingTalkChatbotHandler(ChatbotHandler):
             session_id = get_session_id(uid)
 
             # 调用模型生成回复（传递 uid）
-            result = self.assistant.invoke(user_message, session_id, uid)
+            result = self.assistant.invoke(user_message, session_id, uid=uid)
             reply = result.get("answer", "")
 
             print(f"[钉钉消息] 回复内容: {reply}", flush=True)
 
             # 发送回复
             self.reply_text(reply, message)
+
+            # 记录已处理的消息 ID
+            processed_messages.add(msg_id)
+            print(f"[钉钉消息] 消息已记录: {msg_id}", flush=True)
+
+            # 清理旧的消息 ID（防止内存泄漏，保留最近1000条）
+            if len(processed_messages) > 1000:
+                old_count = len(processed_messages) - 1000
+                old_list = list(processed_messages)[:old_count]
+                for old_id in old_list:
+                    processed_messages.remove(old_id)
+                print(f"[钉钉消息] 清理旧消息ID: 移除 {old_count} 条", flush=True)
 
             # 返回成功状态
             return AckMessage.STATUS_OK, 'OK'

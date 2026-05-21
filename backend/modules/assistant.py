@@ -14,9 +14,8 @@ LangChain Agent 模块
 
 from datetime import datetime
 from typing import Optional, Dict, Any, List
-from langchain.agents import create_tool_calling_agent, AgentExecutor
-from langchain.chains import LLMChain
-from langchain.tools import BaseTool
+from langchain_classic.agents import create_tool_calling_agent, AgentExecutor
+from langchain_classic.tools import BaseTool
 from pydantic import BaseModel, Field
 from modules.prompt import get_role_set_from_feeling
 from mcp_module.context import set_value, remove_value
