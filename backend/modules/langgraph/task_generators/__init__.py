@@ -2,7 +2,6 @@
 任务生成责任链模块
 
 使用责任链模式处理任务生成逻辑，支持：
-- 基于技能的任务生成
 - 基于RAG结果润色的任务生成
 - 默认规划策略（兜底）
 
@@ -12,14 +11,12 @@
 """
 
 from .base import TaskGeneratorHandler
-from .skill_handler import SkillTaskGenerator
 from .rag_refine_handler import RagRefineTaskGenerator
 from .default_handler import DefaultTaskGenerator
 from .chain import TaskGeneratorChain
 
 __all__ = [
     "TaskGeneratorHandler",
-    "SkillTaskGenerator",
     "RagRefineTaskGenerator",
     "DefaultTaskGenerator",
     "TaskGeneratorChain"

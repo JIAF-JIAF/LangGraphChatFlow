@@ -1,8 +1,14 @@
+---
+name: data-analysis
+version: 1.0.0
+description: 分析销售数据、生成可视化报告和业务洞察。支持多维度数据查询、趋势分析、异常检测等功能。
+---
+
 # 数据分析技能
 
 ## 基本信息
 
-- **名称**: data_analysis
+- **名称**: data-analysis
 - **标题**: 数据分析技能
 - **版本**: 1.0.0
 - **作者**: AI Team

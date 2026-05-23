@@ -1,47 +1,30 @@
 """
-Skill 模块 - 统一的技能管理模块
+技能模块
 
-提供完整的技能管理功能：
-- 技能加载（从文件系统）
-- 技能匹配（关键词/语义）
-- 技能执行（步骤化执行）
-- 脚本执行（执行 skill 中的脚本文件）
+提供技能的加载、匹配、执行和工具注册能力。
+
+架构：
+- loader: 使用 pydantic_ai_skills.SkillsToolset 加载 SKILL.md
+- matcher: 关键词 + 语义匹配
+- executor: 脚本安全执行（subprocess + 超时控制）
+- tools: LangChain Tool 定义（skill_list, skill_instructions, skill_reference, skill_run_script）
+- manager: 统一对外入口，组合以上组件
+
+注意：技能安装功能已移至 api/skill_installer.py
 """
 
-# 核心管理器
-from .skill_manager import (
-    SkillManager,
-    ExecutionResult,
-    StepResult,
-    StepStatus,
-    SkillRunResult
-)
-
-# 兼容性导出（保持旧接口）
-from .skill_engine import SkillEngine
-from .skill_manager import SkillManager as LegacySkillManager
-from .installer import SkillInstaller
-from .github_fetcher import GitHubFetcher
-from .md_parser import SkillParser
-
-
-def get_engine() -> SkillEngine:
-    """获取技能引擎（兼容旧接口）"""
-    return SkillEngine()
-
+from .manager import SkillManager
+from .loader import SkillLoader
+from .matcher import SkillMatcher
+from .executor import SkillExecutor
+from .tools import SkillTools
+from .models import SkillInfo
 
 __all__ = [
-    # 新接口
-    'SkillManager',
-    'ExecutionResult',
-    'StepResult',
-    'StepStatus',
-    'SkillRunResult',
-    
-    # 旧接口（兼容）
-    'SkillEngine',
-    'SkillInstaller',
-    'GitHubFetcher',
-    'SkillParser',
-    'get_engine'
+    "SkillManager",
+    "SkillLoader",
+    "SkillMatcher",
+    "SkillExecutor",
+    "SkillTools",
+    "SkillInfo",
 ]

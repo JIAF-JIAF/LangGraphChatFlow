@@ -5,14 +5,13 @@
 
 import os
 from modules.ai_client import AIClient
-from modules.langgraph import LangGraphAgent, TaskPlanner, ReflectionChecker
+from modules.langgraph import LangGraphAgent, TaskPlanner
 from modules.rag import RAGWorkflow
 from modules.checkpoint import CheckpointFactory
 from modules.assistant import Agent as LangChainAgent
 from modules.prompt import create_prompt
 from modules.feeling import FeelingDetector
-from modules.skill import SkillManager
-from mcp_module import MCPToolService
+from modules.tools import ToolManager
 
 
 class AssistantFactory:
@@ -41,12 +40,12 @@ class AssistantFactory:
         rag_workflow = AssistantFactory._try_init_rag_workflow(ai_client)
         print("RAG 工作流初始化完成")
 
-        print("\n[3/4] 初始化 LangChain Agent...")
+        print("\n[3/4] 初始化 LangChain Agent（含技能工具）...")
         langchain_agent = AssistantFactory._try_init_langchain_agent(ai_client)
         print("LangChain Agent 初始化完成")
 
         print("\n[4/4] 初始化 LangGraph 调度层...")
-        checkpointer, task_planner, reflection_checker, skill_manager = AssistantFactory._init_langgraph_components(ai_client)
+        checkpointer, task_planner = AssistantFactory._init_langgraph_components(ai_client)
         feeling_detector = AssistantFactory._try_init_feeling_detector(ai_client)
 
         assistant = LangGraphAgent(
@@ -55,8 +54,7 @@ class AssistantFactory:
             checkpointer=checkpointer,
             feeling_detector=feeling_detector,
             task_planner=task_planner,
-            reflection_checker=reflection_checker,
-            skill_manager=skill_manager
+            verbose=True,
         )
         print("LangGraph 调度层初始化完成")
 
@@ -68,8 +66,6 @@ class AssistantFactory:
             'langchain_agent': langchain_agent,
             'checkpointer': checkpointer,
             'task_planner': task_planner,
-            'reflection_checker': reflection_checker,
-            'skill_manager': skill_manager,
         }
 
     @staticmethod
@@ -93,10 +89,13 @@ class AssistantFactory:
     @staticmethod
     def _try_init_langchain_agent(ai_client):
         try:
-            tools = MCPToolService.get_tools()
+            # 使用工具管理器获取所有工具
+            tool_manager = ToolManager(llm_client=ai_client)
+            all_tools = tool_manager.get_all_tools()
+
             return LangChainAgent(options={
                 "prompt": create_prompt(feeling={"feeling": "default", "score": 5}),
-                "tools": tools,
+                "tools": all_tools,
                 "aiClient": ai_client
             })
         except Exception as e:
@@ -108,9 +107,7 @@ class AssistantFactory:
         checkpoint_storage = os.getenv("CHECKPOINT_STORAGE", "memory").lower()
         checkpointer = CheckpointFactory.build(name=checkpoint_storage)
         task_planner = TaskPlanner(llm_client=ai_client)
-        reflection_checker = ReflectionChecker(llm_client=ai_client)
-        skill_manager = SkillManager(llm_client=ai_client)
-        return checkpointer, task_planner, reflection_checker, skill_manager
+        return checkpointer, task_planner
 
 
 __all__ = ['AssistantFactory']

@@ -10,9 +10,6 @@ LangGraph 状态模块
 - ContextState: 上下文（query, session_id, uid, chat_history）
 - RAGState: RAG 检索（documents, answer, feeling, need_retrieve）
 - TaskState: 任务规划（subtasks, current_task_idx, is_task_completed）
-- ReflectionState: 反思校验（is_reflection_passed, reflection_feedback）
-- RetryState: 重试控制（retry_count, max_retries, retry_task_idx）
-- SkillState: 技能匹配（matched_skill, skill_name, skill_steps）
 """
 
 from .base import (
@@ -20,12 +17,8 @@ from .base import (
     ContextState,
     RAGState,
     TaskState,
-    ReflectionState,
-    RetryState,
-    SkillState,
     FeelingState,
     SubTaskState,
-    SkillStepState,
     create_initial_state,
 )
 
@@ -34,11 +27,7 @@ __all__ = [
     "ContextState",
     "RAGState",
     "TaskState",
-    "ReflectionState",
-    "RetryState",
-    "SkillState",
     "FeelingState",
     "SubTaskState",
-    "SkillStepState",
     "create_initial_state",
 ]

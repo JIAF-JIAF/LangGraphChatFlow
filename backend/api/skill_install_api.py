@@ -5,9 +5,10 @@ Skill 安装 API
 """
 
 import os
+from datetime import datetime
 from flask import Blueprint, request, jsonify
-from modules.skill.installer import get_installer
-from modules.skill.skill_engine import get_engine, reset_engine
+from api.skill_installer import get_installer
+from modules.skill import SkillManager, SkillLoader
 
 skill_install_bp = Blueprint('skill_install', __name__, url_prefix='/skills')
 
@@ -44,9 +45,8 @@ def install_skill():
         result = installer.install_from_url(url)
 
         if result.success:
-            reset_engine()
-            engine = get_engine()
-            skill = engine.get(result.skill_name)
+            manager = SkillManager()
+            skill = manager.load_skill(result.skill_name)
 
             return jsonify({
                 "status": "success",
@@ -88,8 +88,6 @@ def uninstall_skill(skill_name):
         result = installer.uninstall(skill_name)
 
         if result.success:
-            reset_engine()
-
             return jsonify({
                 "status": "success",
                 "message": result.message
@@ -119,11 +117,34 @@ def list_skills():
     try:
         installer = get_installer()
         skills = installer.list_installed()
+        loader = SkillLoader()
+        
+        skill_list = []
+        for skill_name in skills:
+            # 获取技能目录的最后修改时间
+            updated = ""
+            skill_path = loader.get_skill_path(skill_name)
+            if skill_path and skill_path.exists():
+                mtime = os.path.getmtime(skill_path)
+                updated = datetime.fromtimestamp(mtime).strftime('%Y-%m-%d %H:%M:%S')
+            
+            # 获取技能元数据
+            skill_data = loader.load_skill(skill_name)
+            
+            skill_list.append({
+                "id": hash(skill_name),
+                "name": skill_name,
+                "title": skill_data.get('title', skill_name) if skill_data else skill_name,
+                "description": skill_data.get('description', '') if skill_data else '',
+                "file": f"{skill_name}.skill.md",
+                "trigger_keywords": skill_data.get('trigger_keywords', []) if skill_data else [],
+                "updated": updated
+            })
 
         return jsonify({
             "status": "success",
-            "data": skills,
-            "count": len(skills)
+            "data": skill_list,
+            "count": len(skill_list)
         })
     except Exception as e:
         print(f"[SkillInstall] 获取列表失败: {e}")
@@ -145,8 +166,8 @@ def get_skill(skill_name):
         JSON 响应，包含 Skill 详情
     """
     try:
-        engine = get_engine()
-        skill = engine.get(skill_name)
+        manager = SkillManager()
+        skill = manager.load_skill(skill_name)
 
         if skill:
             return jsonify({
@@ -179,8 +200,8 @@ def get_skill_reference(skill_name, ref_path):
         JSON 响应，包含文件内容
     """
     try:
-        engine = get_engine()
-        content = engine.get_reference(skill_name, ref_path)
+        manager = SkillManager()
+        content = manager._loader.get_reference(skill_name, ref_path)
 
         if content is not None:
             return jsonify({
@@ -209,9 +230,9 @@ def reload_skills():
         JSON 响应，包含重新加载结果
     """
     try:
-        reset_engine()
-        engine = get_engine()
-        skills = engine.list()
+        manager = SkillManager()
+        manager.reload()
+        skills = manager.list_skills()
 
         return jsonify({
             "status": "success",

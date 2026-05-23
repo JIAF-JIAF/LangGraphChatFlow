@@ -5,9 +5,9 @@ Skill 配置 API
 """
 
 import os
-import glob
+from datetime import datetime
 from flask import Blueprint, request, jsonify
-from modules.skill import SkillManager
+from modules.skill import SkillManager, SkillLoader
 
 skill_config_bp = Blueprint('skill_config', __name__, url_prefix='/api/skills')
 
@@ -27,18 +27,27 @@ def get_skills():
     """
     try:
         skill_manager = SkillManager()
-        skills = skill_manager.get_all_skills()
+        skills = skill_manager.list_skills()
         
         skill_list = []
+        loader = SkillLoader()
         for skill in skills:
+            skill_name = skill.get('name', '')
+            # 获取技能目录的最后修改时间
+            updated = ""
+            skill_path = loader.get_skill_path(skill_name)
+            if skill_path and skill_path.exists():
+                mtime = os.path.getmtime(skill_path)
+                updated = datetime.fromtimestamp(mtime).strftime('%Y-%m-%d %H:%M:%S')
+            
             skill_list.append({
-                "id": hash(skill.get('name', skill.get('title', ''))),
-                "name": skill.get('name', ''),
-                "title": skill.get('title', ''),
+                "id": hash(skill_name),
+                "name": skill_name,
+                "title": skill.get('title', skill_name),
                 "description": skill.get('description', ''),
-                "file": f"{skill.get('name', '')}.skill.md",
+                "file": f"{skill_name}.skill.md",
                 "trigger_keywords": skill.get('trigger_keywords', []),
-                "updated": ""
+                "updated": updated
             })
         
         return jsonify({
@@ -66,8 +75,8 @@ def get_skill(skill_name):
         JSON 响应，包含 Skill 详情或错误信息
     """
     try:
-        skill_manager = SkillManager()
-        skill = skill_manager.get_skill(skill_name)
+        loader = SkillLoader()
+        skill = loader.load_skill(skill_name)
         
         if skill:
             return jsonify({
@@ -182,12 +191,12 @@ def reload_skills():
     """
     try:
         skill_manager = SkillManager()
-        skill_manager.load_skills()
+        skill_manager.reload()
         
         return jsonify({
             "status": "success",
             "message": "Skill 重新加载成功",
-            "count": len(skill_manager.get_all_skills())
+            "count": len(skill_manager.list_skills())
         })
     except Exception as e:
         print(f"重新加载 Skill 失败: {e}")

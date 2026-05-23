@@ -19,6 +19,7 @@ from modules.document_loaders import DocumentLoaderFactory
 from knowledge_base import kb_manager
 from api.mcp_config_api import mcp_config_bp
 from api.skill_install_api import skill_install_bp
+from api.skill_config_api import skill_config_bp
 from api.rag_api import rag_api_bp
 
 load_dotenv()
@@ -32,8 +33,11 @@ CORS(app)
 # 注册 MCP 配置 API 蓝图
 app.register_blueprint(mcp_config_bp)
 
-# 注册 Skill 配置 API 蓝图
+# 注册 Skill 安装 API 蓝图
 app.register_blueprint(skill_install_bp)
+
+# 注册 Skill 配置 API 蓝图
+app.register_blueprint(skill_config_bp)
 
 # 注册 RAG API 蓝图
 app.register_blueprint(rag_api_bp)

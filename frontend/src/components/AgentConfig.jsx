@@ -303,10 +303,17 @@ function AgentConfig() {
     try {
       const response = await skillConfigApi.getSkills();
       if (response.status === 'success') {
-        const formattedSkills = response.data.map(skill => ({
-          ...skill,
-          updated: skill.updated ? new Date(skill.updated * 1000).toISOString().split('T')[0] : '未知'
-        }));
+        const formattedSkills = response.data.map(skill => {
+          let updated = '未知';
+          if (skill.updated) {
+            if (typeof skill.updated === 'string') {
+              updated = skill.updated.split(' ')[0];
+            } else {
+              updated = new Date(skill.updated * 1000).toISOString().split('T')[0];
+            }
+          }
+          return { ...skill, updated };
+        });
         setSkills(formattedSkills);
       } else {
         setSkills([]);
@@ -345,7 +352,7 @@ function AgentConfig() {
       return;
     }
     try {
-      const response = await skillConfigApi.deleteSkill(skillName);
+      const response = await skillConfigApi.uninstall(skillName);
       if (response.status === 'success') {
         setSkills(skills.filter(skill => skill.name !== skillName));
         showMessage('Skill 删除成功', 'success');
