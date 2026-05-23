@@ -13,7 +13,6 @@ from langchain_core.messages import HumanMessage
 from modules.rag.indexer import ChromaIndexer
 from modules.rag.retriever import SimpleVectorRetriever
 from modules.rag.generator import BaseGenerator
-from modules.rag.memory import ConversationMemory
 from modules.rag.router import LLMRouter
 from knowledge_base import kb_manager
 
@@ -55,9 +54,6 @@ class RAGWorkflow:
 
         # 初始化路由器（只初始化一次，复用）
         self.router = LLMRouter(llm_client=llm_client)
-
-        # 初始化记忆模块
-        self.memory = ConversationMemory()
 
         self._log("RAG 业务模块初始化完成")
 
@@ -202,8 +198,6 @@ class RAGWorkflow:
         """
         self._log(f"[RAG] 生成回答 (文档数: {len(documents)})")
 
-        self.memory.add_message(session_id, "human", query)
-
         try:
             if not documents:
                 answer = "未找到相关知识"
@@ -231,9 +225,8 @@ class RAGWorkflow:
                 #     answer = context
                 #     success = len(context) > 50
             
-            self.memory.add_message(session_id, "assistant", answer)
             self._log(f"[RAG] 生成回答完成: {answer[:50]}...")
-            
+
             return {
                 "success": success,
                 "answer": answer,

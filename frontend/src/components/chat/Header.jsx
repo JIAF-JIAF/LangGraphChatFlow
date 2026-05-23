@@ -1,7 +1,16 @@
-import React from 'react';
+import { memo } from 'react';
 import './Header.css';
 
-function Header() {
+/**
+ * 聊天头部组件
+ * @description 显示智能客服标题，提供跳转向量数据库的入口
+ *
+ * @returns {React.ReactElement}
+ */
+const Header = memo((props) => {
+  /**
+   * 处理跳转向量数据库
+   */
   const handleNavigateToVectorDB = () => {
     window.navigateTo('/vector-db');
   };
@@ -17,6 +26,8 @@ function Header() {
       </button>
     </div>
   );
-}
+});
+
+Header.displayName = 'Header';
 
 export default Header;
