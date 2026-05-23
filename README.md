@@ -26,152 +26,179 @@
 ## 项目结构
 
 ```
-chart-flow-longchain/
-├── backend/                    # Python 后端 (Flask)
-│   ├── app.py                 # Flask 主应用入口
-│   ├── db.py                  # 向量库管理 API
-│   ├── requirements.txt       # Python 依赖
-│   ├── modules/               # 核心功能模块
-│   │   ├── __init__.py        # 模块包初始化
-│   │   ├── ai_client.py       # AI 客户端（兼容 OpenAI SDK）
-│   │   ├── assistant.py       # AI 助手/Agent（旧版）
-│   │   ├── checkpoint/        # 检查点存储（独立模块）
+chart-flow-longgraph/
+├── backend/                      # Python 后端 (Flask)
+│   ├── app.py                   # Flask 主应用入口
+│   ├── db.py                    # 向量库管理 API
+│   ├── DingWebHook.py           # 钉钉 Webhook 入口
+│   ├── Dockerfile               # Docker 构建文件
+│   ├── docker-compose.yml       # Docker Compose 配置
+│   ├── requirements.txt         # Python 依赖
+│   ├── api/                     # API 接口层
+│   │   ├── mcp_config_api.py    # MCP 配置 API
+│   │   ├── rag_api.py           # RAG API
+│   │   ├── skill_config_api.py  # 技能配置 API
+│   │   ├── skill_install_api.py # 技能安装 API
+│   │   └── skill_installer.py   # 技能安装器（pydantic-ai-skills）
+│   ├── config/                  # 配置文件
+│   │   └── mcp_servers.json     # MCP 服务器配置
+│   ├── gateway/                 # 网关配置
+│   │   └── nginx.conf           # Nginx 配置
+│   ├── modules/                 # 核心功能模块
+│   │   ├── __init__.py          # 模块包初始化
+│   │   ├── ai_client.py         # AI 客户端（兼容 OpenAI SDK）
+│   │   ├── assistant.py         # AI 助手/Agent（旧版）
+│   │   ├── factory.py           # 工厂函数
+│   │   ├── logger.py            # 统一日志模块
+│   │   ├── tools.py             # 工具函数
+│   │   ├── checkpoint/          # 检查点存储
 │   │   │   ├── __init__.py
 │   │   │   ├── base.py
 │   │   │   ├── memory.py
 │   │   │   ├── redis.py
 │   │   │   └── factory.py
-│   │   ├── langgraph/         # LangGraph 模块（新版）
+│   │   ├── langgraph/           # LangGraph 模块
 │   │   │   ├── __init__.py
-│   │   │   ├── agent.py       # LangGraph Agent（状态图定义）
-│   │   │   ├── state.py       # 状态定义
-│   │   │   ├── planner/       # 任务规划器
+│   │   │   ├── agent.py         # LangGraph Agent（状态图定义）
+│   │   │   ├── state.py         # 状态定义
+│   │   │   ├── states/          # 状态类型
+│   │   │   │   ├── __init__.py
+│   │   │   │   └── base.py
+│   │   │   ├── planner/         # 任务规划器
 │   │   │   │   ├── __init__.py
 │   │   │   │   └── task_planner.py
-│   │   │   ├── reflection/    # 反思校验器
+│   │   │   ├── reflection/      # 反思校验器
 │   │   │   │   ├── __init__.py
 │   │   │   │   └── reflection_checker.py
-│   │   │   └── task_generators/ # 任务生成器
+│   │   │   └── task_generators/ # 任务生成器（责任链模式）
 │   │   │       ├── __init__.py
 │   │   │       ├── base.py
 │   │   │       ├── chain.py
 │   │   │       ├── default_handler.py
-│   │   │       ├── rag_refine_handler.py
-│   │   │       └── skill_handler.py
-│   │   ├── feeling/           # 情绪感知模块
+│   │   │       └── rag_refine_handler.py
+│   │   ├── feeling/             # 情绪感知模块
 │   │   │   ├── __init__.py
-│   │   │   └── detector.py    # 情绪检测器
-│   │   ├── rag/               # 模块化 RAG 框架（含 RAGWorkflow）
+│   │   │   └── detector.py      # 情绪检测器
+│   │   ├── rag/                 # 模块化 RAG 框架
 │   │   │   ├── __init__.py
-│   │   │   ├── rag.py         # RAG 工作流核心
-│   │   │   ├── indexer/       # 索引模块
-│   │   │   │   ├── base.py    # 索引器基类
-│   │   │   │   ├── chroma.py  # Chroma 实现
-│   │   │   │   └── milvus.py  # Milvus 实现
-│   │   │   ├── retriever/     # 检索模块
-│   │   │   │   ├── base.py    # 检索器基类
-│   │   │   │   ├── simple.py  # 简单向量检索
-│   │   │   │   ├── reranking.py  # 重排序检索
-│   │   │   │   └── filtered.py   # 过滤检索
-│   │   │   ├── generator/     # 生成模块
-│   │   │   │   ├── base.py    # 生成器基类
-│   │   │   │   ├── stuff.py   # Stuff 策略
-│   │   │   │   ├── map_reduce.py  # Map-Reduce 策略
-│   │   │   │   └── refine.py   # Refine 策略
-│   │   │   ├── memory/        # 记忆模块
-│   │   │   │   ├── base.py    # 记忆基类
-│   │   │   │   ├── conversation.py  # 对话记忆
-│   │   │   │   └── knowledge.py     # 知识记忆（预留）
-│   │   │   └── router/        # 路由模块
-│   │   │       ├── base.py    # 路由基类
-│   │   │       ├── simple.py  # 简单路由
-│   │   │       └── llm_router.py  # 基于LLM的智能路由
-│   │   ├── document_loaders/  # 文档加载器
+│   │   │   ├── rag.py           # RAG 工作流核心
+│   │   │   ├── indexer/         # 索引模块
+│   │   │   │   ├── base.py
+│   │   │   │   ├── chroma.py
+│   │   │   │   └── milvus.py
+│   │   │   ├── retriever/       # 检索模块
+│   │   │   │   ├── base.py
+│   │   │   │   ├── simple.py
+│   │   │   │   ├── reranking.py
+│   │   │   │   └── filtered.py
+│   │   │   ├── generator/       # 生成模块
+│   │   │   │   ├── base.py
+│   │   │   │   ├── stuff.py
+│   │   │   │   ├── map_reduce.py
+│   │   │   │   └── refine.py
+│   │   │   ├── memory/          # 记忆模块
+│   │   │   │   ├── base.py
+│   │   │   │   ├── conversation.py
+│   │   │   │   └── knowledge.py
+│   │   │   └── router/          # 路由模块
+│   │   │       ├── base.py
+│   │   │       ├── simple.py
+│   │   │       └── llm_router.py
+│   │   ├── document_loaders/    # 文档加载器
 │   │   │   ├── __init__.py
 │   │   │   ├── loader_factory.py
 │   │   │   ├── text_loader.py
 │   │   │   ├── pdf_loader.py
-│   │   │   └── docx_loader.py   # 支持多种文档格式加载
-│   │   ├── prompt/            # Prompt 模板管理
-│   │   │   └── __init__.py    # 包含 FewShot 和 LengthBasedExampleSelector
-│   │   └── rate_limit/        # 限流模块
+│   │   │   └── docx_loader.py
+│   │   ├── prompt/              # Prompt 模板管理
+│   │   │   └── __init__.py
+│   │   ├── rate_limit/          # 限流模块
+│   │   │   ├── __init__.py
+│   │   │   ├── langchain.py
+│   │   │   └── rate_limiter.py
+│   │   └── skill/               # 技能系统模块
 │   │       ├── __init__.py
-│   │       ├── langchain.py
-│   │       └── rate_limiter.py
-│   │   └── skill/              # 技能系统模块
+│   │       ├── loader.py        # 技能加载器（pydantic-ai-skills）
+│   │       ├── matcher.py       # 技能匹配器
+│   │       ├── executor.py      # 脚本执行器
+│   │       ├── manager.py       # 生命周期管理
+│   │       ├── models.py        # 数据模型
+│   │       └── tools/           # LangChain 工具封装
+│   │           ├── __init__.py
+│   │           ├── factory.py    # 工具工厂
+│   │           ├── skill_list.py
+│   │           ├── skill_instructions.py
+│   │           ├── skill_reference.py
+│   │           ├── skill_run_script.py
+│   │           └── skill_save_file.py
+│   ├── mcp_module/              # MCP 模块（工具服务）
+│   │   ├── __init__.py
+│   │   ├── config.py            # MCP 配置常量
+│   │   ├── context.py           # MCP 上下文
+│   │   ├── logger.py            # 日志模块
+│   │   ├── mcp_server.py        # MCP 服务器核心
+│   │   ├── mcp_client.py        # MCP 客户端
+│   │   ├── mcp_config_manager.py# MCP 配置管理
+│   │   ├── mcp_service.py       # MCP 服务封装
+│   │   ├── start.py             # 启动脚本
+│   │   └── tools/               # 工具插件目录
 │   │       ├── __init__.py
-│   │       ├── skill_manager.py
-│   │       ├── skill_runner.py
-│   │       ├── skill_executor.py
-│   │       ├── skill_engine.py
-│   │       ├── installer.py
-│   │       ├── github_fetcher.py
-│   │       └── md_parser.py
-│   ├── mcp_module/            # MCP 模块（工具服务）
-│   │   ├── __init__.py         # MCP 模块初始化
-│   │   ├── config.py           # MCP 配置常量
-│   │   ├── logger.py           # 统一日志模块
-│   │   ├── mcp_server.py       # MCP 服务器核心
-│   │   ├── mcp_client.py       # MCP 客户端
-│   │   ├── mcp_service.py      # MCP 服务封装
-│   │   ├── start.py            # MCP 服务器启动脚本
-│   │   └── tools/              # 工具插件目录
-│   │       ├── __init__.py
-│   │       ├── registry.py     # 工具注册中心
+│   │       ├── registry.py
 │   │       ├── weather_plugin.py
 │   │       ├── weather_recommend_plugin.py
 │   │       ├── submit_form_plugin.py
-│   │       └── dingtalk/       # 钉钉工具集
+│   │       └── dingtalk/        # 钉钉工具集
 │   │           ├── dingtalk_client.py
 │   │           ├── dingtalk_schedule_create_plugin.py
 │   │           ├── dingtalk_schedule_query_plugin.py
 │   │           ├── dingtalk_schedule_delete_plugin.py
 │   │           └── dingtalk_todo_plugin.py
-│   ├── knowledge_base/        # 知识库管理模块（独立模块）
+│   ├── knowledge_base/          # 知识库管理模块
 │   │   ├── __init__.py
-│   │   ├── manager.py          # 知识库管理器
-│   │   ├── databases.json      # 知识库元数据
-│   │   ├── default/            # 默认知识库（产品文档等）
-│   │   ├── politics/           # 政策文档知识库
-│   │   └── exams/              # 考试资料知识库
-│   ├── db/                    # 向量数据库存储目录（Chroma）
-│   └── user/                  # 用户管理模块
-│       ├── __init__.py
-│       ├── base.py
-│       ├── factory.py
-│       ├── memory.py
-│       └── redis.py
-│   └── skills/                 # 技能库（SKILL.md 格式）
-│       ├── data_analysis/      # 数据分析技能
+│   │   ├── manager.py
+│   │   ├── databases.json
+│   │   ├── general/             # 通用知识库
+│   │   ├── politics/            # 政策文档知识库
+│   │   └── exams/               # 考试资料知识库
+│   ├── db/                      # 向量数据库存储（Chroma）
+│   ├── user/                    # 用户管理模块
+│   │   ├── __init__.py
+│   │   ├── base.py
+│   │   ├── factory.py
+│   │   ├── memory.py
+│   │   └── redis.py
+│   └── skills/                  # 技能库（SKILL.md 格式）
+│       ├── data-analysis/       # 数据分析技能
 │       │   └── SKILL.md
-│       ├── drawio/             # 绘图技能
+│       ├── drawio-skill/        # 流程图绘制技能
 │       │   ├── SKILL.md
 │       │   ├── styles/
+│       │   │   └── built-in/
 │       │   ├── scripts/
-│       │   └── references/
-│       ├── tldraw/             # tldraw 技能
+│       │   ├── references/
+│       │   └── output/
+│       ├── tldraw-skill/        # 白板协作技能
 │       │   └── SKILL.md
-│       └── trip_plan/          # 旅行规划技能
+│       └── trip-plan/           # 旅行规划技能
 │           └── SKILL.md
-
-├── frontend/                   # React 前端 (Vite)
+├── frontend/                     # React 前端 (Vite)
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── ChatArea.jsx          # 聊天区域组件
-│   │   │   ├── Header.jsx            # 头部组件
-│   │   │   ├── InputArea.jsx         # 输入区域组件
-│   │   │   └── VectorDBManager.jsx   # 向量库管理组件
+│   │   │   ├── ChatArea.jsx
+│   │   │   ├── Header.jsx
+│   │   │   ├── InputArea.jsx
+│   │   │   └── VectorDBManager.jsx
 │   │   └── api/
-│   │       ├── chat.js               # 聊天 API
-│   │       └── vectorDb.js           # 向量库管理 API
+│   │       ├── chat.js
+│   │       └── vectorDb.js
 │   └── package.json
-├── resources/                   # 资源文件
-│   ├── qa_test.png               # 智能问答测试截图
-│   ├── schedule_test.png         # 日程创建测试截图
-│   ├── todo_test.png             # 待办创建测试截图
-│   ├── chat_test.png             # 多轮对话测试截图
-│   └── db_manager.png            # 向量库管理界面截图
-├── .env                         # 环境变量配置
+├── resources/                    # 资源文件
+│   ├── qa_test.png
+│   ├── schedule_test.png
+│   ├── todo_test.png
+│   ├── chat_test.png
+│   └── db_manager.png
+├── .env                          # 环境变量配置
 └── .gitignore
 ```
 
@@ -183,32 +210,72 @@ chart-flow-longchain/
 
 1. **分离图定义与业务逻辑**: 将状态图定义与具体业务逻辑分离，提升可维护性
    - `LangGraphAgent` (agent.py): 负责定义状态图结构（节点、边、路由）
+   - `ContextBuilder` (context_builder.py): 负责上下文构建（RAG 文档、对话历史等）
    - `RAGWorkflow` (rag.py): 负责实现具体业务功能（检索、生成等）
+2. **分离调度层与执行层**: LangGraph 负责流程编排，LangChain Agent 负责具体执行
+   - LangGraph（调度层）：不包含技能相关节点，专注于流程控制
+   - LangChain Agent（执行层）：通过 tool calling 自主调用技能工具
+3. **状态持久化**: 通过检查点（Checkpoint）机制实现会话状态的持久化存储
+4. **工作流编排**: 支持多节点路由、条件分支、循环等复杂工作流
 
-2. **状态持久化**: 通过检查点（Checkpoint）机制实现会话状态的持久化存储
-
-3. **工作流编排**: 支持多节点路由、条件分支、循环等复杂工作流
-
-### 状态图结构（增强版）
+### 状态图结构
 
 ```
-START → feeling_detect → skill_match → ┌── 匹配到技能 ──→ load_skill → execute_step → ┌── 成功 ──→ check_step_complete → ┌── 有下一步 ──→ execute_step
-                                      │                                              │                               │
-                                      │                                              │                               └── 完成 ──→ summarize → END
-                                      │                                              │
-                                      │                                              └── 失败 → ┌── 可重试 ──→ execute_step
-                                      │                                                             │
-                                      │                                                             └── 不可重试 ──→ error_handling → END
-                                      │
-                                      └── 未匹配技能 ──→ router → ┌── 需要检索 ──→ retrieve → generate → plan
-                                                              │                                        │
-                                                              └── 不需要检索 ──→ plan ←────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                              LangGraph 状态图                                     │
+└─────────────────────────────────────────────────────────────────────────────────────────┘
+
+START → feeling_detect → router → ┌── 需要检索 ──→ retrieve → generate → plan
+                                   │                                        │
+                                   └── 不需要检索 ──→ plan ←─────────────────┘
+                                                        │
+                                                        ▼
+                                      execute_task → check_task_complete → ┌── 有更多任务 ──→ execute_task
                                                                            │
-                                                                           ▼
-                                                      execute_task → reflect → check_task_complete → ┌── 有更多任务 ──→ execute_task
-                                                                    │                                │
-                                                                    └───────────────────────────────────┴── 所有任务完成 ──→ call_model → END
+                                                                           └── 所有任务完成 ──→ call_model → END
 ```
+
+### execute\_task 节点详解
+
+`execute_task` 是核心执行节点，通过 **LangChain Agent** 调用工具：
+
+```
+execute_task
+    │
+    ▼
+LangChain Agent.invoke()
+    │
+    ├─── MCP 工具调用（通过 MCPToolService）────────────────────────────┐
+    │                                                                     │
+    │   ├── tool: weather_query        # 天气查询                         │
+    │   ├── tool: weather_recommend    # 天气推荐                         │
+    │   ├── tool: submit_form          # 表单提交                         │
+    │   ├── tool: dingtalk_schedule    # 钉钉日程                         │
+    │   └── tool: dingtalk_todo        # 钉钉待办                         │
+    │                                                                     │
+    ├─── 技能工具调用（通过 Skill Tools）─────────────────────────────────┤
+    │                                                                     │
+    │   注意：技能执行已从 LangGraph 节点转移到 LangChain Agent           │
+    │   Agent 通过 skill_list 发现技能，skill_instructions 加载指令       │
+    │   自主执行技能任务，无需经过 LangGraph 调度                          │
+    │                                                                     │
+    └─────────────────────────────────────────────────────────────────────┘
+```
+
+### 节点说明
+
+| 节点                    | 职责   | 说明                                      |
+| --------------------- | ---- | --------------------------------------- |
+| `feeling_detect`      | 情绪检测 | 检测用户情绪，动态更新 Prompt              |
+| `router`              | 智能路由 | 判断是否需要检索，选择知识库                |
+| `retrieve`            | 文档检索 | 从向量库检索相关文档                       |
+| `generate`            | 生成回答 | 基于检索结果生成回答                       |
+| `plan`                | 任务规划 | 评估问题难度，拆分子任务（RAG 增强）         |
+| `execute_task`        | 执行任务 | **核心节点**：调用 MCP 工具（LangChain Agent 执行） |
+| `check_task_complete` | 检查完成 | 判断是否还有子任务                        |
+| `call_model`          | 调用模型 | 最终回复生成                              |
+
+**注意**: 技能执行已从 LangGraph 调度层转移到 LangChain Agent，通过 tool calling 自主发现和执行技能。
 
 ## 情绪感知
 
@@ -216,14 +283,14 @@ START → feeling_detect → skill_match → ┌── 匹配到技能 ──→
 
 ### 情绪类型
 
-| 情绪 | 描述 | 示例 |
-|------|------|------|
-| `default` | 中性/普通状态 | "随便吧，都可以" |
-| `upbeat` | 积极向上 | "加油！我一定能做到" |
-| `angry` | 愤怒不满 | "我特别生气！" |
-| `cheerful` | 欢快喜悦 | "今天天气真好" |
-| `depressed` | 消极低落 | "我很难过" |
-| `friendly` | 友好亲切 | "谢谢你的帮助" |
+| 情绪          | 描述      | 示例          |
+| ----------- | ------- | ----------- |
+| `default`   | 中性/普通状态 | "随便吧，都可以"   |
+| `upbeat`    | 积极向上    | "加油！我一定能做到" |
+| `angry`     | 愤怒不满    | "我特别生气！"    |
+| `cheerful`  | 欢快喜悦    | "今天天气真好"    |
+| `depressed` | 消极低落    | "我很难过"      |
+| `friendly`  | 友好亲切    | "谢谢你的帮助"    |
 
 ### 情绪配置
 
@@ -256,13 +323,13 @@ MOODS = {
 
 ### 难度等级划分
 
-| 难度等级 | 描述 | 任务数量 | 示例 |
-|---------|------|---------|------|
-| 1级 | 简单事实查询 | 1个任务 | "北京今天天气怎么样？" |
-| 2级 | 需要简单推理 | 1个任务 | "明天去上海出差需要带什么？" |
-| 3级 | 需要多步骤分析 | 2个任务 | "帮我分析本月销售数据" |
-| 4级 | 需要综合多领域知识 | 3个任务 | "制定下周旅行计划" |
-| 5级 | 需要创造性解决方案 | 4个任务 | "设计一个新产品推广方案" |
+| 难度等级 | 描述        | 任务数量 | 示例              |
+| ---- | --------- | ---- | --------------- |
+| 1级   | 简单事实查询    | 1个任务 | "北京今天天气怎么样？"    |
+| 2级   | 需要简单推理    | 1个任务 | "明天去上海出差需要带什么？" |
+| 3级   | 需要多步骤分析   | 2个任务 | "帮我分析本月销售数据"    |
+| 4级   | 需要综合多领域知识 | 3个任务 | "制定下周旅行计划"      |
+| 5级   | 需要创造性解决方案 | 4个任务 | "设计一个新产品推广方案"   |
 
 ### 任务规划流程
 
@@ -274,53 +341,45 @@ MOODS = {
 
 ### 配置项
 
-| 环境变量 | 默认值 | 说明 |
-|---------|-------|------|
-| TASK_PLANNER_MAX_TASKS | 5 | 最大子任务数量 |
-| TASK_PLANNER_MIN_TASKS | 1 | 最小子任务数量 |
-| TASK_PLANNER_ENABLE | true | 是否启用任务规划 |
-
+| 环境变量                      | 默认值  | 说明       |
+| ------------------------- | ---- | -------- |
+| TASK\_PLANNER\_MAX\_TASKS | 5    | 最大子任务数量  |
+| TASK\_PLANNER\_MIN\_TASKS | 1    | 最小子任务数量  |
+| TASK\_PLANNER\_ENABLE     | true | 是否启用任务规划 |
 
 ## 技能系统
 
-系统支持基于 SKILL.md 的技能匹配和执行引擎，提供专业领域的深度服务。
+基于 `pydantic-ai-skills` 的技能匹配和执行引擎，提供专业领域的深度服务。
+
+> 📖 **详细设计文档**: [SKILL\_SYSTEM.md](SKILL_SYSTEM.md)
+>
+> 包含：技术架构、执行流程图、安装流程、目录结构、SKILL.md 格式、开发指南、API 接口
+
+### 核心特性
+
+- **业界成熟方案**: 使用 `pydantic-ai-skills.SkillsToolset` 加载和管理技能
+- **分层架构**: Loader → Matcher → Executor → Tools → Manager
+- **渐进式披露**: skill\_list → skill\_instructions → skill\_reference → skill\_save\_file → skill\_run\_script
+- **GitHub 安装**: 支持从 GitHub URL 一键安装技能
 
 ### 内置技能
 
-| 技能名称 | 功能描述 | 触发关键词 |
-|---------|---------|-----------|
-| data_analysis | 数据分析、生成可视化报告 | 分析、报告、数据、统计、趋势 |
-| drawio | 绘制流程图、架构图 | 画图、流程图、架构图、设计 |
-| tldraw | 协作绘图、白板 | 白板、绘图、协作 |
-| trip_plan | 旅行规划、行程安排 | 旅行、旅游、行程、攻略 |
+| 技能名称          | 功能描述       |
+| ------------- | ---------- |
+| data-analysis | 数据分析、可视化报告 |
+| drawio-skill  | 流程图、架构图绘制  |
+| tldraw-skill  | 协作绘图、白板    |
+| trip-plan     | 旅行规划、行程安排  |
 
-### 技能匹配流程
+### 快速开始
 
+```python
+from api.skill_installer import get_installer
+
+installer = get_installer()
+installer.install_from_url("https://github.com/Agents365-ai/drawio-skill")
+skills = installer.list_installed()
 ```
-用户查询 → 关键词匹配 → ┌── 匹配成功 ──→ 执行技能 → 返回结果
-                     │
-                     └── 匹配失败 ──→ 继续常规流程
-```
-
-### skill_runner 状态图
-
-```
-START → load_skill → execute_step → ┌── 步骤成功 ──→ check_step_complete → ┌── 有下一步 ──→ execute_step
-                                    │                                    │
-                                    │                                    └── 所有步骤完成 ──→ summarize → END
-                                    │
-                                    └── 步骤失败 → ┌── 可重试 ──→ execute_step
-                                                  │
-                                                  └── 不可重试 ──→ error_handling → END
-```
-
-| 节点 | 职责 | 说明 |
-|------|------|------|
-| load_skill | 加载技能 | 根据技能名称加载 SKILL.md 定义 |
-| execute_step | 执行步骤 | 执行当前步骤（调用工具、处理逻辑） |
-| check_step_complete | 检查步骤完成 | 判断是否还有下一步骤 |
-| summarize | 结果汇总 | 汇总所有步骤结果，生成最终回复 |
-| error_handling | 错误处理 | 处理执行失败，返回友好提示 |
 
 ## 配置中心
 
@@ -330,11 +389,11 @@ START → load_skill → execute_step → ┌── 步骤成功 ──→ check
 
 配置中心包含以下管理功能：
 
-| 功能 | 说明 |
-|------|------|
-| **技能管理** | 安装、卸载、配置技能，可通过管理页面动态添加新技能 |
-| **MCP 工具配置** | 添加、删除 MCP 服务器，配置 MCP 工具连接参数 |
-| **数据库管理（RAG 向量库）** | 创建、删除向量数据库，上传文档，管理知识库 |
+| 功能                 | 说明                          |
+| ------------------ | --------------------------- |
+| **技能管理**           | 安装、卸载、配置技能，可通过管理页面动态添加新技能   |
+| **MCP 工具配置**       | 添加、删除 MCP 服务器，配置 MCP 工具连接参数 |
+| **数据库管理（RAG 向量库）** | 创建、删除向量数据库，上传文档，管理知识库       |
 
 ### 技能管理
 
@@ -382,23 +441,23 @@ RAG 流程:
 
 ### 核心模块
 
-| 模块 | 职责 | 基类 | 实现类 |
-|------|------|------|--------|
-| Indexer | 文档加载、切分、向量化存储 | BaseIndexer | ChromaIndexer, MilvusIndexer |
-| Retriever | 从索引中检索相关文档 | BaseRetriever | SimpleVectorRetriever, RerankingRetriever, FilteredRetriever |
-| Generator | 基于检索文档生成回答 | BaseGenerator | StuffGenerator, MapReduceGenerator, RefineGenerator |
-| Memory | 管理对话历史和上下文 | BaseMemory | ConversationMemory, KnowledgeMemory |
-| Router | 决定是否检索、选择知识库 | BaseRouter | SimpleRouter, LLMRouter |
+| 模块        | 职责            | 基类            | 实现类                                                          |
+| --------- | ------------- | ------------- | ------------------------------------------------------------ |
+| Indexer   | 文档加载、切分、向量化存储 | BaseIndexer   | ChromaIndexer, MilvusIndexer                                 |
+| Retriever | 从索引中检索相关文档    | BaseRetriever | SimpleVectorRetriever, RerankingRetriever, FilteredRetriever |
+| Generator | 基于检索文档生成回答    | BaseGenerator | StuffGenerator, MapReduceGenerator, RefineGenerator          |
+| Memory    | 管理对话历史和上下文    | BaseMemory    | ConversationMemory, KnowledgeMemory                          |
+| Router    | 决定是否检索、选择知识库  | BaseRouter    | SimpleRouter, LLMRouter                                      |
 
 ### 多知识库支持
 
 系统支持多个独立知识库，通过智能路由器自动选择合适的知识库：
 
-| 知识库名称 | 用途 | 示例内容 |
-|-----------|------|---------|
-| default | 产品文档、公司信息 | 智能办公系统、数据分析平台、价格方案、售后服务 |
-| politics | 政策文档 | 党的会议文件、政策文件 |
-| exams | 考试资料 | 行测蒙题技巧、考试复习资料 |
+| 知识库名称    | 用途        | 示例内容                    |
+| -------- | --------- | ----------------------- |
+| default  | 产品文档、公司信息 | 智能办公系统、数据分析平台、价格方案、售后服务 |
+| politics | 政策文档      | 党的会议文件、政策文件             |
+| exams    | 考试资料      | 行测蒙题技巧、考试复习资料           |
 
 ### 可视化知识库管理
 
@@ -522,18 +581,18 @@ DINGTALK_CLIENT_ID=your_app_key
 DINGTALK_CLIENT_SECRET=your_app_secret
 ```
 
-| 配置项 | 说明 |
-|--------|------|
-| API_KEY | 阿里云百炼或 OpenAI API 密钥 |
-| BASE_URL | API 基础地址 |
-| MODEL | 对话模型名称 |
-| EMBEDDING_MODEL | 向量化模型名称 |
-| CHECKPOINT_STORAGE | 检查点存储类型：`memory`（内存）或 `redis`（Redis持久化） |
-| REDIS_HOST | Redis 服务器地址（当 CHECKPOINT_STORAGE=redis 时生效） |
-| REDIS_PORT | Redis 端口号 |
-| REDIS_DB | Redis 数据库编号 |
-| REDIS_PASSWORD | Redis 密码（可选） |
-| MCP_SERVERS | MCP 服务器配置列表，支持多服务器配置 |
+| 配置项                 | 说明                                           |
+| ------------------- | -------------------------------------------- |
+| API\_KEY            | 阿里云百炼或 OpenAI API 密钥                         |
+| BASE\_URL           | API 基础地址                                     |
+| MODEL               | 对话模型名称                                       |
+| EMBEDDING\_MODEL    | 向量化模型名称                                      |
+| CHECKPOINT\_STORAGE | 检查点存储类型：`memory`（内存）或 `redis`（Redis持久化）      |
+| REDIS\_HOST         | Redis 服务器地址（当 CHECKPOINT\_STORAGE=redis 时生效） |
+| REDIS\_PORT         | Redis 端口号                                    |
+| REDIS\_DB           | Redis 数据库编号                                  |
+| REDIS\_PASSWORD     | Redis 密码（可选）                                 |
+| MCP\_SERVERS        | MCP 服务器配置列表，支持多服务器配置                         |
 
 ### MCP 配置
 
@@ -558,6 +617,7 @@ APP_PORT = 5000
 检查服务状态。
 
 **响应示例:**
+
 ```json
 {
   "status": "ready",
@@ -572,6 +632,7 @@ APP_PORT = 5000
 处理对话请求。
 
 **请求:**
+
 ```json
 {
   "message": "用户输入",
@@ -580,6 +641,7 @@ APP_PORT = 5000
 ```
 
 **响应:**
+
 ```json
 {
   "reply": "AI回复内容",
@@ -597,6 +659,7 @@ APP_PORT = 5000
 获取所有知识库列表。
 
 **响应:**
+
 ```json
 {
   "status": "success",
@@ -617,6 +680,7 @@ APP_PORT = 5000
 创建新的知识库。
 
 **请求:**
+
 ```json
 {
   "name": "my_knowledge_base",
@@ -625,6 +689,7 @@ APP_PORT = 5000
 ```
 
 **响应:**
+
 ```json
 {
   "status": "success",
@@ -633,11 +698,12 @@ APP_PORT = 5000
 }
 ```
 
-#### GET /api/databases/{db_name}
+#### GET /api/databases/{db\_name}
 
 获取指定知识库详情。
 
 **响应:**
+
 ```json
 {
   "status": "success",
@@ -653,11 +719,12 @@ APP_PORT = 5000
 }
 ```
 
-#### PUT /api/databases/{db_name}
+#### PUT /api/databases/{db\_name}
 
 更新知识库信息。
 
 **请求:**
+
 ```json
 {
   "description": "更新后的描述"
@@ -665,6 +732,7 @@ APP_PORT = 5000
 ```
 
 **响应:**
+
 ```json
 {
   "status": "success",
@@ -672,11 +740,12 @@ APP_PORT = 5000
 }
 ```
 
-#### DELETE /api/databases/{db_name}
+#### DELETE /api/databases/{db\_name}
 
 删除知识库（同时删除向量索引）。
 
 **响应:**
+
 ```json
 {
   "status": "success",
@@ -684,16 +753,18 @@ APP_PORT = 5000
 }
 ```
 
-#### POST /api/databases/{db_name}/upload
+#### POST /api/databases/{db\_name}/upload
 
 上传文档到知识库并自动向量化。
 
 **请求:** `multipart/form-data`
+
 ```
 files: [file1.txt, file2.pdf, file3.docx]
 ```
 
 **响应:**
+
 ```json
 {
   "status": "success",
@@ -712,30 +783,30 @@ files: [file1.txt, file2.pdf, file3.docx]
 MCP（Model Context Protocol）服务器负责管理和提供工具服务：
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                MCP 服务器 (8080端口)                 │
-│  ┌─────────────────────────────────────────────┐   │
-│  │           工具注册表 (_TOOL_REGISTRY)          │   │
-│  │  ┌─────────┐ ┌─────────┐ ┌─────────────┐   │   │
-│  │  │get_weather│ │get_weather_forecast│ │submit_form│ │   │
-│  │  └────┬────┘ └────┬────┘ └──────┬──────┘   │   │
-│  └───────┼───────────┼─────────────┼───────────┘   │
-│          │           │             │               │
-│          └───────────┼─────────────┘               │
-│                      ↓                             │
-│            ┌─────────────────┐                     │
-│            │  FastMCP Server │ ← Streamable HTTP   │
-│            └─────────────────┘                     │
-└─────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────┐
+│                MCP 服务器 (8080端口)                    │
+│  ┌────────────────────────────────────────────────────┐
+│  │           工具注册表 (_TOOL_REGISTRY)                │
+│  │  ┌─────────┐ ┌─────────┐ ┌─────────────┐           │
+│  │  │get_weather│ │get_weather_forecast│  │           │
+│  │  └────┬────┘ └────┬────┘ └──────┬──────┘           │
+│  └───────┼───────────┼─────────────┼                  │
+│          │           │             │                  │
+│          └───────────┼─────────────┘                  │
+│                      ↓                                │
+│            ┌─────────────────┐                        │
+│            │  FastMCP Server │ ← Streamable HTTP      │
+│            └─────────────────┘                        │
+└───────────────────────────────────────────────────────┘
                           ↑
                           │ HTTP 请求
                           ↓
 ┌─────────────────────────────────────────────────────┐
 │              应用服务器 (5000端口)                    │
-│  ┌─────────────┐    ┌─────────────┐                │
+│  ┌─────────────┐    ┌─────────────┐                 │
 │  │   Agent     │←───│MCPToolService│                │
-│  │ (LangGraph) │    │   (客户端)   │                │
-│  └─────────────┘    └─────────────┘                │
+│  │ (LangGraph) │    │   (客户端)   │                 │
+│  └─────────────┘    └─────────────┘                 │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -784,12 +855,12 @@ def get_weather(city: str) -> str:
 
 ### 钉钉工具列表
 
-| 工具名称 | 功能 | 参数 |
-|---------|------|------|
+| 工具名称                       | 功能   | 参数                                                |
+| -------------------------- | ---- | ------------------------------------------------- |
 | `create_dingtalk_schedule` | 创建日程 | summary(标题), isAllDay(是否全天), start/end datetime 等 |
-| `query_dingtalk_schedule` | 查询日程 | schedule_id 或查询条件 |
-| `delete_dingtalk_schedule` | 删除日程 | schedule_id |
-| `create_dingtalk_todo` | 创建待办 | summary(标题), due_date(截止日期) |
+| `query_dingtalk_schedule`  | 查询日程 | schedule\_id 或查询条件                                |
+| `delete_dingtalk_schedule` | 删除日程 | schedule\_id                                      |
+| `create_dingtalk_todo`     | 创建待办 | summary(标题), due\_date(截止日期)                      |
 
 ### 钉钉配置
 
@@ -804,13 +875,13 @@ DINGTALK_CLIENT_SECRET=your_app_secret
 
 创建日程时需要注意全天和非全天日程的参数差异：
 
-| 参数 | 全天日程 | 非全天日程 |
-|------|---------|-----------|
-| start_date | ✅ 必填 | ❌ 留空 |
-| start_datetime | ❌ 留空 | ✅ 必填 |
-| end_date | ✅ 必填 | ❌ 留空 |
-| end_datetime | ❌ 留空 | ✅ 必填 |
-| isAllDay | true | false |
+| 参数              | 全天日程 | 非全天日程 |
+| --------------- | ---- | ----- |
+| start\_date     | ✅ 必填 | ❌ 留空  |
+| start\_datetime | ❌ 留空 | ✅ 必填  |
+| end\_date       | ✅ 必填 | ❌ 留空  |
+| end\_datetime   | ❌ 留空 | ✅ 必填  |
+| isAllDay        | true | false |
 
 ## 使用流程
 
@@ -882,6 +953,7 @@ BaseRouter.should_retrieve() # 返回 True
 ## 技术栈
 
 **后端:**
+
 - Flask 3.0.0 - Web 框架
 - OpenAI SDK >= 1.40.0 - AI API 客户端（兼容 DeepSeek）
 - Flask-CORS - 跨域支持
@@ -899,16 +971,19 @@ BaseRouter.should_retrieve() # 返回 True
 - MCP - Model Context Protocol（工具服务协议）
 
 **前端:**
+
 - React 18 - UI 框架
 - Vite - 构建工具
 - Axios - HTTP 请求
 
 **AI 服务:**
+
 - 阿里云百炼平台 / OpenAI
 - qwen-plus 模型
 - text-embedding-v3 向量化模型
 
 **向量数据库:**
+
 - Chroma - 默认向量存储
 - Milvus - 可选向量存储
 
@@ -936,11 +1011,13 @@ BaseRouter.should_retrieve() # 返回 True
 系统支持两种检查点存储方式，通过 `CHECKPOINT_STORAGE` 环境变量配置：
 
 **1. MemorySaver（内存存储）**
+
 - 默认配置，适合开发和测试环境
 - 数据存储在内存中，服务重启后数据丢失
 - 配置：`CHECKPOINT_STORAGE=memory`
 
 **2. RedisSaver（Redis 持久化存储）**
+
 - 适合生产环境，支持会话持久化
 - 需要提前启动 Redis 服务
 - 配置：`CHECKPOINT_STORAGE=redis`
@@ -977,13 +1054,13 @@ checkpointer = CheckpointFactory.build(name="memory")
 
 ### Docker 服务架构
 
-| 服务 | 端口 | 说明 |
-|------|------|------|
-| `redis` | 6379 | 会话状态存储 |
-| `mcp` | 8080 | MCP 工具服务器 |
-| `app` | 8000 | 智能客服后端 API |
-| `db` | 5001 | 向量库管理后端 API |
-| `vector-frontend` | 5174 | 向量库管理前端 UI |
+| 服务                | 端口   | 说明          |
+| ----------------- | ---- | ----------- |
+| `redis`           | 6379 | 会话状态存储      |
+| `mcp`             | 8080 | MCP 工具服务器   |
+| `app`             | 8000 | 智能客服后端 API  |
+| `db`              | 5001 | 向量库管理后端 API |
+| `vector-frontend` | 5174 | 向量库管理前端 UI  |
 
 ### Docker 部署步骤
 
@@ -997,8 +1074,8 @@ docker-compose up -d
 
 ### 访问地址
 
-- **智能客服**: http://localhost:8000
-- **向量库管理**: http://localhost:5174
+- **智能客服**: <http://localhost:8000>
+- **向量库管理**: <http://localhost:5174>
 
 ### 环境变量文件 (.env)
 
@@ -1033,13 +1110,13 @@ REDIS_PORT=6379
 
 钉钉智能会话助手已在钉钉内完成测试验证，测试截图位于 `resources/` 目录：
 
-| 截图文件 | 说明 |
-|---------|------|
-| `qa_test.png` | 智能问答测试 |
-| `schedule_test.png` | 日程创建测试 |
-| `todo_test.png` | 待办创建测试 |
-| `chat_test.png` | 多轮对话测试 |
-| `db_manager.png` | 向量库管理界面 |
+| 截图文件                | 说明      |
+| ------------------- | ------- |
+| `qa_test.png`       | 智能问答测试  |
+| `schedule_test.png` | 日程创建测试  |
+| `todo_test.png`     | 待办创建测试  |
+| `chat_test.png`     | 多轮对话测试  |
+| `db_manager.png`    | 向量库管理界面 |
 
 ### 钉钉部署配置
 
@@ -1066,32 +1143,32 @@ DINGTALK_CLIENT_SECRET=your_app_secret
 
 系统支持基于 LLM 的智能任务规划，根据问题难度自动生成多步骤执行计划：
 
-| 难度等级 | 描述 | 任务数量 |
-|---------|------|---------|
-| 1级 | 简单事实查询 | 1个任务 |
-| 2级 | 需要简单推理 | 1个任务 |
-| 3级 | 需要多步骤分析 | 2个任务 |
-| 4级 | 需要综合多领域知识 | 3个任务 |
-| 5级 | 需要创造性解决方案 | 4个任务 |
+| 难度等级 | 描述        | 任务数量 |
+| ---- | --------- | ---- |
+| 1级   | 简单事实查询    | 1个任务 |
+| 2级   | 需要简单推理    | 1个任务 |
+| 3级   | 需要多步骤分析   | 2个任务 |
+| 4级   | 需要综合多领域知识 | 3个任务 |
+| 5级   | 需要创造性解决方案 | 4个任务 |
 
 ### 测试验证截图
 
 #### 核心功能展示
 
-| 智能问答与知识库(RAG) | 日程管理(MCP) | 工具调用与任务规划 |
-|---------------------|--------------|------------------|
+| 智能问答与知识库(RAG)                           | 日程管理(MCP)                          | 工具调用与任务规划                             |
+| --------------------------------------- | ---------------------------------- | ------------------------------------- |
 | ![智能问答与知识库(RAG)](resources/qa_test.png) | ![日程创建测试](resources/todo_test.png) | ![天气查询与旅行计划](resources/too_taskl.png) |
 
 #### 复杂任务规划展示
 
-| 任务规划 | 任务执行 | 结果汇总 |
-|---------|---------|---------|
+| 任务规划                                  | 任务执行                                  | 结果汇总                                  |
+| ------------------------------------- | ------------------------------------- | ------------------------------------- |
 | ![任务规划](resources/complex_task_2.png) | ![任务执行](resources/complex_task_3.png) | ![结果汇总](resources/complex_task_4.png) |
 
 #### 技能使用展示
 
-| 技能触发 | 步骤执行 | 结果生成 |
-|---------|---------|---------|
+| 技能触发                                  | 步骤执行                                  | 结果生成                                  |
+| ------------------------------------- | ------------------------------------- | ------------------------------------- |
 | ![技能触发](resources/tldraw%20-%201.png) | ![步骤执行](resources/tldraw%20-%202.png) | ![结果生成](resources/tldraw%20-%203.png) |
 
 #### 配置中心
