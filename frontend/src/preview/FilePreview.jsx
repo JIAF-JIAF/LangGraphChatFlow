@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import useUiStore from '../stores/uiStore';
 import useDatabaseStore from '../stores/databaseStore';
 import vectorDbApi from '../api/vectorDb';
-import mammoth from 'mammoth';
 import { TextPreview, PdfPreview, WordPreview } from './previews';
+import { convertWordToCangjieFormat } from './utils/wordConverter';
 
 export const FilePreview = () => {
   const { previewFile, closePreviewSidebar } = useUiStore();
@@ -13,6 +13,7 @@ export const FilePreview = () => {
   const [error, setError] = useState(null);
   const [pdfBlob, setPdfBlob] = useState(null);
   const [fileType, setFileType] = useState(null);
+  const [wordData, setWordData] = useState(null);
 
   const getFileExtension = (filename) => {
     return filename.split('.').pop().toLowerCase();
@@ -42,6 +43,7 @@ export const FilePreview = () => {
     setContent('');
     setPdfBlob(null);
     setFileType(null);
+    setWordData(null);
 
     const extension = getFileExtension(previewFile.filename);
     const type = getFileType(extension);
@@ -70,11 +72,8 @@ export const FilePreview = () => {
 
         case 'word':
           const arrayBuffer = await blob.arrayBuffer();
-          const result = await mammoth.extractRawText({ arrayBuffer });
-          setContent(result.value);
-          if (result.messages.length > 0) {
-            console.warn('Mammoth warnings:', result.messages);
-          }
+          const jsonML = await convertWordToCangjieFormat(arrayBuffer);
+          setWordData(jsonML);
           setLoading(false);
           break;
 
@@ -120,7 +119,7 @@ export const FilePreview = () => {
       case 'pdf':
         return <PdfPreview blob={pdfBlob} onError={setError} />;
       case 'word':
-        return <WordPreview content={content} />;
+        return <WordPreview wordData={wordData} />;
       case 'unsupported':
         return <TextPreview content={content} />;
       default:

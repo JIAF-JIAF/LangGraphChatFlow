@@ -1040,3 +1040,45 @@
   border-top: 1px dashed #cbd5e1;
   margin: 16px 0;
 }
+
+.word-preview-container {
+  background: white;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  min-height: 200px;
+}
+
+.word-preview-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  gap: 12px;
+}
+
+.word-preview-loading span {
+  color: #64748b;
+  font-size: 14px;
+}
+
+.word-preview-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  gap: 12px;
+  color: #ef4444;
+}
+
+.word-preview-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  gap: 12px;
+  color: #94a3b8;
+}
