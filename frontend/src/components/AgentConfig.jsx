@@ -1,15 +1,16 @@
 import { useEffect, memo } from 'react';
 import useDatabaseStore from '../stores/databaseStore';
 import useUiStore from '../stores/uiStore';
-import Sidebar from './config/Sidebar';
-import DatabasePanel from './config/DatabasePanel';
-import MCPPanel from './config/MCPPanel';
-import SkillPanel from './config/SkillPanel';
-import CreateDatabaseModal from './config/CreateDatabaseModal';
+import { Sidebar } from './config/Sidebar';
+import { DatabasePanel } from './config/DatabasePanel';
+import { MCPPanel } from './config/MCPPanel';
+import { SkillPanel } from './config/SkillPanel';
+import { CreateDatabaseModal } from './config/CreateDatabaseModal';
+import { FilePreview } from '../preview';
 import './AgentConfig.css';
 
-const AgentConfig = memo((props) => {
-  const { activeTab, setActiveTab } = useUiStore();
+export const AgentConfig = memo((props) => {
+  const { activeTab, setActiveTab, showPreviewSidebar } = useUiStore();
   const { databases, message, messageType, loadDatabases } = useDatabaseStore();
 
   const tabs = [
@@ -44,7 +45,7 @@ const AgentConfig = memo((props) => {
       <div className="main-content">
         <Sidebar />
 
-        <div className="content">
+        <div className={`content ${showPreviewSidebar ? 'content-shrink' : ''}`}>
           <div className="content-header">
             <div className="tabs">
               {tabs.map((tab) => (
@@ -70,6 +71,8 @@ const AgentConfig = memo((props) => {
 
           <div className="tab-content">{renderTabContent()}</div>
         </div>
+
+        {showPreviewSidebar && <FilePreview />}
       </div>
 
       <CreateDatabaseModal />
@@ -78,5 +81,3 @@ const AgentConfig = memo((props) => {
 });
 
 AgentConfig.displayName = 'AgentConfig';
-
-export default AgentConfig;

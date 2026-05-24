@@ -288,7 +288,30 @@ def get_documents(db_name):
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/databases/<db_name>/documents/<doc_name>', methods=['DELETE'])
+@app.route('/databases/<db_name>/documents/<doc_name>', methods=['GET', 'DELETE'])
+def handle_document(db_name, doc_name):
+    """获取或删除文档"""
+    if request.method == 'GET':
+        return get_document_content(db_name, doc_name)
+    else:
+        return delete_document(db_name, doc_name)
+
+def get_document_content(db_name, doc_name):
+    """获取文档内容"""
+    try:
+        db = kb_manager.get_database(db_name)
+        if not db:
+            return jsonify({"status": "error", "message": "数据库不存在"}), 404
+
+        file_path = os.path.join(kb_manager.knowledge_base_dir, db_name, doc_name)
+        if not os.path.exists(file_path):
+            return jsonify({"status": "error", "message": "文档不存在"}), 404
+
+        from flask import send_file
+        return send_file(file_path, as_attachment=False)
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 def delete_document(db_name, doc_name):
     """删除数据库中的单个文档"""
     try:

@@ -7,10 +7,10 @@ import { create } from 'zustand';
  * @returns {Object} UI 状态和方法
  *
  * @example
- * ```jsx
+ * jsx
  * const { activeTab, setActiveTab, openCreateModal } = useUiStore();
  * setActiveTab('mcp');
- * ```
+ * 
  */
 const useUiStore = create((set) => ({
   /**
@@ -33,6 +33,18 @@ const useUiStore = create((set) => ({
     name: '',
     description: ''
   },
+
+  /**
+   * 是否显示预览侧边栏
+   * @type {boolean}
+   */
+  showPreviewSidebar: false,
+
+  /**
+   * 当前预览的文件信息
+   * @type {{ filename: string, fileId: string } | null}
+   */
+  previewFile: null,
 
   /**
    * 设置当前激活的标签页
@@ -69,6 +81,23 @@ const useUiStore = create((set) => ({
    */
   resetNewDbForm: () => set({
     newDbForm: { name: '', description: '' }
+  }),
+
+  /**
+   * 打开预览侧边栏
+   * @param {{ filename: string, fileId: string }} file - 要预览的文件信息
+   */
+  openPreviewSidebar: (file) => set({
+    showPreviewSidebar: true,
+    previewFile: file
+  }),
+
+  /**
+   * 关闭预览侧边栏
+   */
+  closePreviewSidebar: () => set({
+    showPreviewSidebar: false,
+    previewFile: null
   })
 }));
 

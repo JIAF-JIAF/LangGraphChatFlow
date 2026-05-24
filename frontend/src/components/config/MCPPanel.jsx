@@ -7,7 +7,7 @@ import useConfigStore from '../../stores/configStore';
  *
  * @returns {React.ReactElement}
  */
-const MCPPanel = memo(() => {
+export const MCPPanel = memo(() => {
   const {
     mcpServers,
     mcpLoading,
@@ -130,5 +130,3 @@ const MCPPanel = memo(() => {
 });
 
 MCPPanel.displayName = 'MCPPanel';
-
-export default MCPPanel;

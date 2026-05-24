@@ -10,7 +10,7 @@ import './InputArea.css';
  * @param {boolean} props.loading - 是否正在加载，禁用输入
  * @returns {React.ReactElement}
  */
-const InputArea = memo((props) => {
+export const InputArea = memo((props) => {
   const { onSend, loading } = props;
   const [input, setInput] = useState('');
 
@@ -62,5 +62,3 @@ const InputArea = memo((props) => {
 });
 
 InputArea.displayName = 'InputArea';
-
-export default InputArea;

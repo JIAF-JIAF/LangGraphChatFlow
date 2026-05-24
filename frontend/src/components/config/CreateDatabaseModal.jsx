@@ -8,7 +8,7 @@ import useUiStore from '../../stores/uiStore';
  *
  * @returns {React.ReactElement|null}
  */
-const CreateDatabaseModal = memo((props) => {
+export const CreateDatabaseModal = memo((props) => {
   const { showCreateModal, closeCreateModal, newDbForm, setNewDbForm } = useUiStore();
   const { createDatabase } = useDatabaseStore();
 
@@ -80,5 +80,3 @@ const CreateDatabaseModal = memo((props) => {
 });
 
 CreateDatabaseModal.displayName = 'CreateDatabaseModal';
-
-export default CreateDatabaseModal;

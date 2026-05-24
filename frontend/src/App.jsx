@@ -9,7 +9,7 @@ import './App.css';
  *
  * @returns {React.ReactElement}
  */
-const App = memo((props) => {
+export const App = memo((props) => {
   const { messages, loading, sendMessage } = useChatStore();
 
   /**
@@ -30,5 +30,3 @@ const App = memo((props) => {
 });
 
 App.displayName = 'App';
-
-export default App;

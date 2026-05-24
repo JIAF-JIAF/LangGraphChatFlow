@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import useDatabaseStore from '../../stores/databaseStore';
+import useUiStore from '../../stores/uiStore';
 
 /**
  * 数据库面板组件
@@ -7,7 +8,7 @@ import useDatabaseStore from '../../stores/databaseStore';
  *
  * @returns {React.ReactElement}
  */
-const DatabasePanel = memo(() => {
+export const DatabasePanel = memo(() => {
   const {
     selectedDb,
     documents,
@@ -16,6 +17,7 @@ const DatabasePanel = memo(() => {
     uploadFiles,
     deleteDocument
   } = useDatabaseStore();
+  const { openPreviewSidebar } = useUiStore();
 
   const allowedExtensions = ['.txt', '.pdf', '.md', '.csv', '.docx'];
 
@@ -152,12 +154,20 @@ const DatabasePanel = memo(() => {
                     {doc.chunk_count} 个分块 · {doc.vector_count} 个向量
                   </span>
                 </div>
-                <button
-                  className="doc-delete"
-                  onClick={() => handleDeleteDocument(doc.filename)}
-                >
-                  ✕
-                </button>
+                <div className="doc-actions">
+                  <button
+                    className="btn btn-sm btn-preview"
+                    onClick={() => openPreviewSidebar({ filename: doc.filename, fileId: doc.id })}
+                  >
+                    查看
+                  </button>
+                  <button
+                    className="btn btn-sm btn-delete"
+                    onClick={() => handleDeleteDocument(doc.filename)}
+                  >
+                    删除
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -168,5 +178,3 @@ const DatabasePanel = memo(() => {
 });
 
 DatabasePanel.displayName = 'DatabasePanel';
-
-export default DatabasePanel;

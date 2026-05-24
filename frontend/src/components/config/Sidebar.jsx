@@ -9,7 +9,7 @@ import useConfigStore from '../../stores/configStore';
  *
  * @returns {React.ReactElement}
  */
-const Sidebar = memo(() => {
+export const Sidebar = memo(() => {
   const { databases, selectedDb, loading, selectDatabase, deleteDatabase } = useDatabaseStore();
   const { openCreateModal } = useUiStore();
   const { loadAll } = useConfigStore();
@@ -87,5 +87,3 @@ const Sidebar = memo(() => {
 });
 
 Sidebar.displayName = 'Sidebar';
-
-export default Sidebar;

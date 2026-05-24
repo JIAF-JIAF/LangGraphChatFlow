@@ -1,12 +1,10 @@
-import AgentConfig from './components/AgentConfig';
+import { AgentConfig } from './components/AgentConfig';
 import './App.css';
 
-function DbApp() {
+export const DbApp = () => {
   return (
     <div className="app-container">
       <AgentConfig />
     </div>
   );
-}
-
-export default DbApp;
+};

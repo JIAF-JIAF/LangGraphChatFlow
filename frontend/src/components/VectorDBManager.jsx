@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import './VectorDBManager.css';
 import vectorDbApi from '../api/vectorDb';
 
-function VectorDBManager() {
+export const VectorDBManager = () => {
   const [databases, setDatabases] = useState([]);
   const [selectedDb, setSelectedDb] = useState(null);
   const [documents, setDocuments] = useState([]);
@@ -383,6 +383,4 @@ function VectorDBManager() {
       )}
     </div>
   );
-}
-
-export default VectorDBManager;
+};

@@ -59,6 +59,13 @@ const vectorDbApi = {
   deleteDocument: async (dbName, docName) => {
     const response = await axios.delete(`${BASE_URL}/databases/${dbName}/documents/${docName}`);
     return response.data;
+  },
+
+  getDocumentContent: async (dbName, docName) => {
+    const response = await axios.get(`${BASE_URL}/databases/${dbName}/documents/${docName}`, {
+      responseType: 'blob'
+    });
+    return response.data;
   }
 };
 

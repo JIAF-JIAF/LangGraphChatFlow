@@ -19,7 +19,7 @@ import './ChatArea.css';
  * @param {boolean} props.loading - 是否正在加载
  * @returns {React.ReactElement}
  */
-const ChatArea = memo((props) => {
+export const ChatArea = memo((props) => {
   const { messages, loading } = props;
 
   return (
@@ -54,5 +54,3 @@ const ChatArea = memo((props) => {
 });
 
 ChatArea.displayName = 'ChatArea';
-
-export default ChatArea;

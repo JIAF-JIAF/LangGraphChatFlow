@@ -35,15 +35,8 @@ chart-flow-longgraph/
 │   ├── docker-compose.yml       # Docker Compose 配置
 │   ├── requirements.txt         # Python 依赖
 │   ├── api/                     # API 接口层
-│   │   ├── mcp_config_api.py    # MCP 配置 API
-│   │   ├── rag_api.py           # RAG API
-│   │   ├── skill_config_api.py  # 技能配置 API
-│   │   ├── skill_install_api.py # 技能安装 API
-│   │   └── skill_installer.py   # 技能安装器（pydantic-ai-skills）
 │   ├── config/                  # 配置文件
-│   │   └── mcp_servers.json     # MCP 服务器配置
-│   ├── gateway/                 # 网关配置
-│   │   └── nginx.conf           # Nginx 配置
+│   ├── gateway/                 # 网关配置（Nginx 配置）
 │   ├── modules/                 # 核心功能模块
 │   │   ├── __init__.py          # 模块包初始化
 │   │   ├── ai_client.py         # AI 客户端（兼容 OpenAI SDK）
@@ -62,14 +55,8 @@ chart-flow-longgraph/
 │   │   │   ├── agent.py         # LangGraph Agent（状态图定义）
 │   │   │   ├── state.py         # 状态定义
 │   │   │   ├── states/          # 状态类型
-│   │   │   │   ├── __init__.py
-│   │   │   │   └── base.py
 │   │   │   ├── planner/         # 任务规划器
-│   │   │   │   ├── __init__.py
-│   │   │   │   └── task_planner.py
 │   │   │   ├── reflection/      # 反思校验器
-│   │   │   │   ├── __init__.py
-│   │   │   │   └── reflection_checker.py
 │   │   │   └── task_generators/ # 任务生成器（责任链模式）
 │   │   │       ├── __init__.py
 │   │   │       ├── base.py
@@ -77,41 +64,16 @@ chart-flow-longgraph/
 │   │   │       ├── default_handler.py
 │   │   │       └── rag_refine_handler.py
 │   │   ├── feeling/             # 情绪感知模块
-│   │   │   ├── __init__.py
-│   │   │   └── detector.py      # 情绪检测器
 │   │   ├── rag/                 # 模块化 RAG 框架
 │   │   │   ├── __init__.py
 │   │   │   ├── rag.py           # RAG 工作流核心
 │   │   │   ├── indexer/         # 索引模块
-│   │   │   │   ├── base.py
-│   │   │   │   ├── chroma.py
-│   │   │   │   └── milvus.py
 │   │   │   ├── retriever/       # 检索模块
-│   │   │   │   ├── base.py
-│   │   │   │   ├── simple.py
-│   │   │   │   ├── reranking.py
-│   │   │   │   └── filtered.py
 │   │   │   ├── generator/       # 生成模块
-│   │   │   │   ├── base.py
-│   │   │   │   ├── stuff.py
-│   │   │   │   ├── map_reduce.py
-│   │   │   │   └── refine.py
 │   │   │   └── router/          # 路由模块
-│   │   │       ├── base.py
-│   │   │       ├── simple.py
-│   │   │       └── llm_router.py
 │   │   ├── document_loaders/    # 文档加载器
-│   │   │   ├── __init__.py
-│   │   │   ├── loader_factory.py
-│   │   │   ├── text_loader.py
-│   │   │   ├── pdf_loader.py
-│   │   │   └── docx_loader.py
 │   │   ├── prompt/              # Prompt 模板管理
-│   │   │   └── __init__.py
 │   │   ├── rate_limit/          # 限流模块
-│   │   │   ├── __init__.py
-│   │   │   ├── langchain.py
-│   │   │   └── rate_limiter.py
 │   │   └── skill/               # 技能系统模块
 │   │       ├── __init__.py
 │   │       ├── loader.py        # 技能加载器（pydantic-ai-skills）
@@ -144,18 +106,7 @@ chart-flow-longgraph/
 │   │       ├── weather_recommend_plugin.py
 │   │       ├── submit_form_plugin.py
 │   │       └── dingtalk/        # 钉钉工具集
-│   │           ├── dingtalk_client.py
-│   │           ├── dingtalk_schedule_create_plugin.py
-│   │           ├── dingtalk_schedule_query_plugin.py
-│   │           ├── dingtalk_schedule_delete_plugin.py
-│   │           └── dingtalk_todo_plugin.py
 │   ├── knowledge_base/          # 知识库管理模块
-│   │   ├── __init__.py
-│   │   ├── manager.py
-│   │   ├── databases.json
-│   │   ├── general/             # 通用知识库
-│   │   ├── politics/            # 政策文档知识库
-│   │   └── exams/               # 考试资料知识库
 │   ├── db/                      # 向量数据库存储（Chroma）
 │   ├── user/                    # 用户管理模块
 │   │   ├── __init__.py
@@ -165,36 +116,16 @@ chart-flow-longgraph/
 │   │   └── redis.py
 │   └── skills/                  # 技能库（SKILL.md 格式）
 │       ├── data-analysis/       # 数据分析技能
-│       │   └── SKILL.md
 │       ├── drawio-skill/        # 流程图绘制技能
-│       │   ├── SKILL.md
-│       │   ├── styles/
-│       │   │   └── built-in/
-│       │   ├── scripts/
-│       │   ├── references/
-│       │   └── output/
 │       ├── tldraw-skill/        # 白板协作技能
-│       │   └── SKILL.md
 │       └── trip-plan/           # 旅行规划技能
-│           └── SKILL.md
-├── frontend/                     # React 前端 (Vite)
+├── frontend/                    # React 前端 (Vite)
 │   ├── src/
-│   │   ├── components/
-│   │   │   ├── ChatArea.jsx
-│   │   │   ├── Header.jsx
-│   │   │   ├── InputArea.jsx
-│   │   │   └── VectorDBManager.jsx
-│   │   └── api/
-│   │       ├── chat.js
-│   │       └── vectorDb.js
+│   │   ├── components/          # React 前端 (组件)
+│   │   └── api/                 # React 前端 (API)
 │   └── package.json
-├── resources/                    # 资源文件
-│   ├── qa_test.png
-│   ├── schedule_test.png
-│   ├── todo_test.png
-│   ├── chat_test.png
-│   └── db_manager.png
-├── .env                          # 环境变量配置
+├── resources/                   # 资源文件
+├── .env                         # 环境变量配置
 └── .gitignore
 ```
 

@@ -1,10 +1,10 @@
 export * from './chat';
 
-export { default as AgentConfig } from './AgentConfig';
-export { default as VectorDBManager } from './VectorDBManager';
+export * from './AgentConfig';
+export * from './VectorDBManager';
 
-export { default as Sidebar } from './config/Sidebar';
-export { default as DatabasePanel } from './config/DatabasePanel';
-export { default as MCPPanel } from './config/MCPPanel';
-export { default as SkillPanel } from './config/SkillPanel';
-export { default as CreateDatabaseModal } from './config/CreateDatabaseModal';
+export * from './config/Sidebar';
+export * from './config/DatabasePanel';
+export * from './config/MCPPanel';
+export * from './config/SkillPanel';
+export * from './config/CreateDatabaseModal';

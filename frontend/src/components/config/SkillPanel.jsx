@@ -7,7 +7,7 @@ import useConfigStore from '../../stores/configStore';
  *
  * @returns {React.ReactElement}
  */
-const SkillPanel = memo(() => {
+export const SkillPanel = memo(() => {
   const {
     skills,
     skillLoading,
@@ -110,5 +110,3 @@ const SkillPanel = memo(() => {
 });
 
 SkillPanel.displayName = 'SkillPanel';
-
-export default SkillPanel;

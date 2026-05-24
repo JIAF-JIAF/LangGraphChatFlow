@@ -7,7 +7,7 @@ import './Header.css';
  *
  * @returns {React.ReactElement}
  */
-const Header = memo((props) => {
+export const Header = memo((props) => {
   /**
    * 处理跳转向量数据库
    */
@@ -29,5 +29,3 @@ const Header = memo((props) => {
 });
 
 Header.displayName = 'Header';
-
-export default Header;
