@@ -29,7 +29,7 @@ class RagRefineTaskGenerator(TaskGeneratorHandler):
         if not rag_success or not documents:
             return None
         
-        print(f"[任务生成] 使用RAG文档策略，文档数: {len(documents)}")
+        log(f"使用RAG文档策略，文档数: {len(documents)}", "TaskGenerator")
         
         return [{
             "task_id": "task_1",

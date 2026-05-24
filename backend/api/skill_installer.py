@@ -18,7 +18,7 @@ from urllib.parse import urlparse
 import requests
 from pydantic_ai_skills import SkillsToolset
 
-from modules.logger import log
+from modules.logger import log, exception
 
 
 @dataclass
@@ -76,7 +76,7 @@ class SkillInstaller:
                 return InstallResult(success=False, message=f"无效的 GitHub URL: {url}")
             return self._install(location)
         except Exception as e:
-            log(f"安装失败: {e}", module="Skill.Installer")
+            exception(f"安装失败: {e}", module="Skill.Installer", exc=e)
             return InstallResult(success=False, message=str(e))
 
     def _parse_github_url(self, url: str) -> Optional[Dict[str, str]]:
@@ -186,7 +186,7 @@ class SkillInstaller:
             )
 
         except Exception as e:
-            log(f"安装异常: {e}", module="Skill.Installer")
+            exception(f"安装异常: {e}", module="Skill.Installer", exc=e)
             return InstallResult(
                 success=False,
                 message=f"安装失败: {str(e)}",
@@ -223,7 +223,7 @@ class SkillInstaller:
                 skill_name=skill_name
             )
         except Exception as e:
-            log(f"卸载失败: {e}", module="Skill.Installer")
+            exception(f"卸载失败: {e}", module="Skill.Installer", exc=e)
             return InstallResult(
                 success=False,
                 message=f"卸载失败: {str(e)}",
@@ -270,7 +270,7 @@ class SkillInstaller:
             log(f"技能不存在: {skill_name}", module="Skill.Installer")
             return None
         except Exception as e:
-            log(f"获取技能信息失败: {e}", module="Skill.Installer")
+            exception(f"获取技能信息失败: {e}", module="Skill.Installer", exc=e)
             return None
 
     def reload(self) -> None:

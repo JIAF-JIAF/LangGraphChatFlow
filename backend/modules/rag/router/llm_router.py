@@ -20,6 +20,7 @@ import os
 from typing import Optional, Dict, Any
 from langchain_core.messages import HumanMessage
 
+from modules.logger import log, exception
 from .base import BaseRouter
 from knowledge_base import kb_manager
 
@@ -77,7 +78,7 @@ class LLMRouter(BaseRouter):
             response_text = self._call_llm(prompt)
             return self._parse_retrieval_decision(response_text)
         except Exception as e:
-            print(f"[ERROR] LLMRouter.should_retrieve: {e}")
+            exception(f"LLMRouter.should_retrieve 错误: {e}", "Router", e)
             # 如果LLM调用失败，默认进行检索
             return True
 
@@ -100,7 +101,7 @@ class LLMRouter(BaseRouter):
                 return None
             return result
         except Exception as e:
-            print(f"[ERROR] LLMRouter.select_knowledge_base: {e}")
+            exception(f"LLMRouter.select_knowledge_base 错误: {e}", "Router", e)
             return None
 
     def select_retrieval_strategy(self, query: str) -> Dict[str, Any]:
@@ -119,7 +120,7 @@ class LLMRouter(BaseRouter):
             response_text = self._call_llm(prompt)
             return self._parse_strategy_response(response_text)
         except Exception as e:
-            print(f"[ERROR] LLMRouter.select_retrieval_strategy: {e}")
+            exception(f"LLMRouter.select_retrieval_strategy 错误: {e}", "Router", e)
             return {}
 
     def _build_retrieval_prompt(self, query: str) -> str:

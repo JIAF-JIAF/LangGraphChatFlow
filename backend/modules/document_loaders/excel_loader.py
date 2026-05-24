@@ -7,6 +7,7 @@ from typing import List
 from langchain_core.documents import Document
 import pandas as pd
 
+from modules.logger import log, exception
 from .loader_factory import BaseDocumentLoader, DocumentLoaderFactory
 
 
@@ -62,7 +63,7 @@ class ExcelDocumentLoader(BaseDocumentLoader):
             
             return documents
         except Exception as e:
-            print(f"加载 Excel 文档失败: {e}")
+            exception(f"加载 Excel 文档失败: {e}", "ExcelLoader", e)
             return []
 
 

@@ -9,10 +9,10 @@ import json
 import logging
 from dotenv import load_dotenv
 
-# 添加模块路径
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from modules.factory import AssistantFactory
+from modules.logger import log, exception
 from dingtalk_stream import ChatbotHandler, ChatbotMessage, Credential, DingTalkStreamClient, AckMessage
 
 # 确保输出编码正确
@@ -59,33 +59,33 @@ class DingTalkChatbotHandler(ChatbotHandler):
         """处理钉钉消息回调"""
         try:
             # 打印完整的回调消息
-            print(f"\n===== 钉钉回调消息 =====", flush=True)
-            print(f"callback.data: {callback.data}", flush=True)
-            print(f"========================\n", flush=True)
+            log("钉钉回调消息", "DingTalk")
+            log(f"callback.data: {callback.data}", "DingTalk")
+            log("========================", "DingTalk")
 
             message = ChatbotMessage.from_dict(callback.data)
 
             # 打印 message 对象的所有属性
-            print(f"message.sender_id: {message.sender_id}", flush=True)
-            print(f"message.sender_staff_id: {getattr(message, 'sender_staff_id', 'N/A')}", flush=True)
-            print(f"message.sender_nick: {getattr(message, 'sender_nick', 'N/A')}", flush=True)
+            log(f"message.sender_id: {message.sender_id}", "DingTalk")
+            log(f"message.sender_staff_id: {getattr(message, 'sender_staff_id', 'N/A')}", "DingTalk")
+            log(f"message.sender_nick: {getattr(message, 'sender_nick', 'N/A')}", "DingTalk")
 
             # 获取消息 ID（唯一标识）
             msg_id = message.message_id
-            print(f"[钉钉消息] 消息ID(msgId): {msg_id}", flush=True)
+            log(f"消息ID(msgId): {msg_id}", "DingTalk")
 
             # 去重检查 - 如果已处理过，直接返回
             if msg_id in processed_messages:
-                print(f"[钉钉消息] 消息已处理，跳过: {msg_id}", flush=True)
+                log(f"消息已处理，跳过: {msg_id}", "DingTalk")
                 return AckMessage.STATUS_OK, 'OK'
 
             # 获取用户 ID - 使用 senderStaffId
             uid = getattr(message, 'sender_staff_id', message.sender_id)
-            print(f"\n[钉钉消息] 用户ID(senderStaffId): {uid}", flush=True)
+            log(f"用户ID(senderStaffId): {uid}", "DingTalk")
 
             # 获取消息内容
             user_message = message.text.content
-            print(f"[钉钉消息] 消息内容: {user_message}", flush=True)
+            log(f"消息内容: {user_message}", "DingTalk")
 
             # 获取会话 ID
             session_id = get_session_id(uid)
@@ -94,14 +94,14 @@ class DingTalkChatbotHandler(ChatbotHandler):
             result = self.assistant.invoke(user_message, session_id, uid=uid)
             reply = result.get("answer", "")
 
-            print(f"[钉钉消息] 回复内容: {reply}", flush=True)
+            log(f"回复内容: {reply}", "DingTalk")
 
             # 发送回复
             self.reply_text(reply, message)
 
             # 记录已处理的消息 ID
             processed_messages.add(msg_id)
-            print(f"[钉钉消息] 消息已记录: {msg_id}", flush=True)
+            log(f"消息已记录: {msg_id}", "DingTalk")
 
             # 清理旧的消息 ID（防止内存泄漏，保留最近1000条）
             if len(processed_messages) > 1000:
@@ -109,13 +109,13 @@ class DingTalkChatbotHandler(ChatbotHandler):
                 old_list = list(processed_messages)[:old_count]
                 for old_id in old_list:
                     processed_messages.remove(old_id)
-                print(f"[钉钉消息] 清理旧消息ID: 移除 {old_count} 条", flush=True)
+                log(f"清理旧消息ID: 移除 {old_count} 条", "DingTalk")
 
             # 返回成功状态
             return AckMessage.STATUS_OK, 'OK'
 
         except Exception as e:
-            print(f"[钉钉消息] 处理异常: {e}", flush=True)
+            exception(f"处理异常: {e}", "DingTalk", e)
             import traceback
             traceback.print_exc()
             return AckMessage.STATUS_OK, 'OK'

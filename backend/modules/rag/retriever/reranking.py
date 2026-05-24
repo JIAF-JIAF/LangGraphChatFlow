@@ -24,6 +24,7 @@ from typing import List, Optional, Dict, Tuple
 from langchain_core.documents import Document
 from sentence_transformers import CrossEncoder
 
+from modules.logger import log, exception
 from .base import BaseRetriever
 
 
@@ -55,9 +56,9 @@ class RerankingRetriever(BaseRetriever):
         """初始化 Cross-Encoder 重排序模型"""
         try:
             self._reranker = CrossEncoder(self.model_name)
-            print(f"[RERANK] 重排序模型加载成功: {self.model_name}")
+            log(f"重排序模型加载成功: {self.model_name}", "Reranking")
         except Exception as e:
-            print(f"[ERROR] 加载重排序模型失败: {e}")
+            exception(f"加载重排序模型失败: {e}", "Reranking", e)
             self._reranker = None
 
     def retrieve(self, query: str) -> List[Document]:
@@ -82,7 +83,7 @@ class RerankingRetriever(BaseRetriever):
 
         # 2. 如果重排序模型未加载或加载失败，直接返回前 N 个
         if not self.reranker:
-            print("[RERANK] 重排序模型未加载，使用基础检索结果")
+            log("重排序模型未加载，使用基础检索结果", "Reranking")
             return documents[:self.rerank_top_k]
 
         # 3. 使用 Cross-Encoder 进行重排序
@@ -100,11 +101,11 @@ class RerankingRetriever(BaseRetriever):
             # 返回前 N 个最高分的文档
             result = [doc for doc, score in scored_docs[:self.rerank_top_k]]
             
-            print(f"[RERANK] 重排序完成，原始 {len(documents)} 篇，返回前 {self.rerank_top_k} 篇")
+            log(f"重排序完成，原始 {len(documents)} 篇，返回前 {self.rerank_top_k} 篇", "Reranking")
             return result
             
         except Exception as e:
-            print(f"[ERROR] 重排序失败: {e}")
+            exception(f"重排序失败: {e}", "Reranking", e)
             # 如果重排序失败，返回基础检索结果
             return documents[:self.rerank_top_k]
 

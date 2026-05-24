@@ -6,6 +6,7 @@ from typing import List
 from langchain_core.documents import Document
 from langchain_community.document_loaders import TextLoader
 
+from modules.logger import log, exception
 from .loader_factory import BaseDocumentLoader, DocumentLoaderFactory
 
 
@@ -25,7 +26,7 @@ class TextDocumentLoader(BaseDocumentLoader):
             loader = TextLoader(self.file_path, encoding='utf-8')
             return loader.load()
         except Exception as e:
-            print(f"加载 TXT 文档失败: {e}")
+            exception(f"加载 TXT 文档失败: {e}", "TextLoader", e)
             return []
 
 

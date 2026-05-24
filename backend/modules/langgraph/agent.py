@@ -34,6 +34,7 @@ import time
 from typing import Optional, Dict, Any, List, Literal
 from langgraph.graph import StateGraph, END, START
 
+from modules.logger import log
 from .states import AgentState, create_initial_state
 from .task_generators import TaskGeneratorChain
 from .context_builder import ContextBuilder
@@ -96,18 +97,6 @@ class LangGraphAgent:
 
         self._build_graph()
 
-    def _log(self, message: str, level: str = "INFO"):
-        """
-        输出日志
-
-        Args:
-            message: 日志消息
-            level: 日志级别
-        """
-        if self._verbose:
-            timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-            print(f"[{timestamp}] [LangGraph] [{level}] {message}", flush=True)
-
     def _feeling_detect_node(self, state: AgentState) -> AgentState:
         """
         感情侦测节点：分析用户输入的情绪状态
@@ -119,10 +108,10 @@ class LangGraphAgent:
             更新后的状态（包含 feeling）
         """
         query = state["query"]
-        self._log(f"[节点: feeling_detect] 开始执行，查询: {query[:30]}...")
+        log(f"[节点: feeling_detect] 开始执行，查询: {query[:30]}...", "LangGraph")
 
         feeling = self._feeling_detector.detect(query)
-        self._log(f"[节点: feeling_detect] 情绪分析结果: {feeling}")
+        log(f"[节点: feeling_detect] 情绪分析结果: {feeling}", "LangGraph")
 
         return {"feeling": feeling}
 
@@ -137,10 +126,10 @@ class LangGraphAgent:
             更新后的状态（只需返回需要更新的字段）
         """
         query = state["query"]
-        self._log(f"[节点: router] 开始执行查询: {query[:30]}...")
+        log(f"[节点: router] 开始执行查询: {query[:30]}...", "LangGraph")
 
         need_retrieve = self._rag_workflow.should_retrieve(query)
-        self._log(f"[节点: router] 决策: {'需要检索' if need_retrieve else '不需要检索'}")
+        log(f"[节点: router] 决策: {'需要检索' if need_retrieve else '不需要检索'}", "LangGraph")
 
         return {"need_retrieve": need_retrieve}
 
@@ -155,7 +144,7 @@ class LangGraphAgent:
             更新后的状态（documents 使用 list_append，返回增量）
         """
         query = state["query"]
-        self._log(f"[节点: retrieve] 开始执行")
+        log(f"[节点: retrieve] 开始执行", "LangGraph")
 
         # 选择最合适的知识库
         kb = self._rag_workflow.select_knowledge_base(query)
@@ -163,7 +152,7 @@ class LangGraphAgent:
 
         # 执行检索
         documents = self._rag_workflow.retrieve(query)
-        self._log(f"[节点: retrieve] 检索到 {len(documents)} 个文档")
+        log(f"[节点: retrieve] 检索到 {len(documents)} 个文档", "LangGraph")
 
         # 设置 RAG 成功标志（用于后续节点判断）
         rag_success = len(documents) > 0
@@ -188,15 +177,15 @@ class LangGraphAgent:
             更新后的状态（包含子任务队列和初始状态）
         """
         query = state["query"]
-        self._log(f"[节点: plan] 开始任务规划")
+        log(f"[节点: plan] 开始任务规划", "LangGraph")
 
         # 使用责任链模式生成子任务
         chain = TaskGeneratorChain.build()
         subtasks = chain.handle(state, self._task_planner, query)
 
-        self._log(f"[节点: plan] 生成 {len(subtasks)} 个子任务")
+        log(f"[节点: plan] 生成 {len(subtasks)} 个子任务", "LangGraph")
         for i, task in enumerate(subtasks):
-            self._log(f"  [{i+1}] {task['task_description'][:30]}...")
+            log(f"  [{i+1}] {task['task_description'][:30]}...", "LangGraph")
 
         return {
             "subtasks": subtasks,
@@ -220,13 +209,13 @@ class LangGraphAgent:
 
         current_task = subtasks[current_idx]
         task_desc = current_task["task_description"]
-        self._log(f"[节点: execute_task] 执行任务 {current_idx + 1}/{len(subtasks)}: {task_desc[:30]}...")
+        log(f"[节点: execute_task] 执行任务 {current_idx + 1}/{len(subtasks)}: {task_desc[:30]}...", "LangGraph")
 
         # 使用 ContextBuilder 构建完整任务 prompt
         documents = state.get("documents", [])
         enhanced_task = ContextBuilder.build_task_with_context(task_desc, documents)
         if documents:
-            self._log(f"[节点: execute_task] 注入 {len(documents)} 个RAG文档作为上下文")
+            log(f"[节点: execute_task] 注入 {len(documents)} 个RAG文档作为上下文", "LangGraph")
 
         # 调用 Agent 执行任务
         result = self._agent.invoke(
@@ -237,7 +226,7 @@ class LangGraphAgent:
         )
         task_result = result.get("answer", "")
 
-        self._log(f"[节点: execute_task] 任务执行完成: {task_result[:50]}...")
+        log(f"[节点: execute_task] 任务执行完成: {task_result[:50]}...", "LangGraph")
 
         # 更新任务结果
         subtasks[current_idx]["result"] = task_result
@@ -263,17 +252,17 @@ class LangGraphAgent:
         current_idx = state["current_task_idx"]
         answer = state["answer"]
 
-        self._log(f"[节点: check_task_complete] 检查任务完成情况")
+        log(f"[节点: check_task_complete] 检查任务完成情况", "LangGraph")
 
         # 如果已完成所有任务
         if current_idx >= len(subtasks) - 1:
-            self._log(f"[节点: check_task_complete] 所有任务已完成")
+            log(f"[节点: check_task_complete] 所有任务已完成", "LangGraph")
 
             # 生成汇总结果
             summary = self._task_planner.get_summary(subtasks)
             if summary:
                 answer = summary
-                self._log(f"[节点: check_task_complete] 生成汇总结果: {summary[:50]}...")
+                log(f"[节点: check_task_complete] 生成汇总结果: {summary[:50]}...", "LangGraph")
             return {
                 "answer": answer,
                 "is_task_completed": True,
@@ -282,7 +271,7 @@ class LangGraphAgent:
 
         # 还有更多任务
         next_idx = current_idx + 1
-        self._log(f"[节点: check_task_complete] 准备执行下一个任务: {next_idx + 1}/{len(subtasks)}")
+        log(f"[节点: check_task_complete] 准备执行下一个任务: {next_idx + 1}/{len(subtasks)}", "LangGraph")
 
         return {
             "current_task_idx": next_idx,
@@ -300,7 +289,7 @@ class LangGraphAgent:
             "retrieve" 或 "plan"，决定下一步流向
         """
         decision = "retrieve" if state["need_retrieve"] else "plan"
-        self._log(f"[条件路由] 决策: {decision}")
+        log(f"[条件路由] 决策: {decision}", "LangGraph")
         return decision
 
     def _should_continue_tasks(self, state: AgentState) -> Literal["execute_task", "call_model"]:
@@ -320,10 +309,10 @@ class LangGraphAgent:
         # 判断是否所有任务都已执行完成
         # current_idx 是刚执行完的任务索引，需要大于等于最后一个任务索引才算全部完成
         if is_task_completed or current_idx > len(subtasks) - 1:
-            self._log(f"[条件路由] 所有任务已完成，进入最终回答")
+            log(f"[条件路由] 所有任务已完成，进入最终回答", "LangGraph")
             return "call_model"
         else:
-            self._log(f"[条件路由] 还有任务未完成，继续执行任务 {current_idx + 1}/{len(subtasks)}")
+            log(f"[条件路由] 还有任务未完成，继续执行任务 {current_idx + 1}/{len(subtasks)}", "LangGraph")
             return "execute_task"
 
     def _call_model_node(self, state: AgentState) -> AgentState:
@@ -341,7 +330,7 @@ class LangGraphAgent:
         chat_history = state.get("chat_history", [])
         feeling = state["feeling"]
 
-        self._log(f"[节点: call_model] 开始执行，回答长度: {len(answer)}，对话历史长度: {len(chat_history)}")
+        log(f"[节点: call_model] 开始执行，回答长度: {len(answer)}，对话历史长度: {len(chat_history)}", "LangGraph")
 
         # RAG 检索失败或无答案时，直接调用 Agent 生成
         rag_success = state.get("rag_success", False)
@@ -349,7 +338,7 @@ class LangGraphAgent:
             result = self._agent.invoke(query, None, chat_history, feeling)
             answer = result.get("answer", "")
 
-        self._log(f"[节点: call_model] 执行完成: {answer[:50]}...")
+        log(f"[节点: call_model] 执行完成: {answer[:50]}...", "LangGraph")
 
         # 使用 ContextBuilder 构建对话历史增量
         return {
@@ -376,7 +365,7 @@ class LangGraphAgent:
         - plan 节点：任务规划，可访问 state["documents"]
         - execute_task 节点：执行任务时，将 RAG 文档作为上下文注入到 prompt
         """
-        self._log("开始构建 LangGraph 状态图...")
+        log("开始构建 LangGraph 状态图...", "LangGraph")
 
         self._graph = StateGraph(AgentState)
 
@@ -419,17 +408,17 @@ class LangGraphAgent:
 
         # 编译图
         self._graph = self._graph.compile(checkpointer=self._checkpointer)
-        self._log("LangGraph 状态图构建完成")
+        log("LangGraph 状态图构建完成", "LangGraph")
 
     def invoke(self, query: str, session_id: str = "default", uid: Optional[str] = None) -> Dict[str, Any]:
         """
         执行 Agent（LangGraph 1.0+ 官方标准调用方式）
         无论是否有历史，永远只传增量！
         """
-        self._log(f"=== 开始处理请求 ===")
-        self._log(f"会话ID: {session_id}")
-        self._log(f"用户ID: {uid}")
-        self._log(f"用户查询: {query}")
+        log(f"=== 开始处理请求 ===", "LangGraph")
+        log(f"会话ID: {session_id}", "LangGraph")
+        log(f"用户ID: {uid}", "LangGraph")
+        log(f"用户查询: {query}", "LangGraph")
 
         # ========================
         # ✅ 正确：永远只传增量！
@@ -441,7 +430,7 @@ class LangGraphAgent:
             "uid": uid,
         }
 
-        self._log(f"传入增量状态: {list(input_state.keys())}")
+        log(f"传入增量状态: {list(input_state.keys())}", "LangGraph")
 
         # 调用 LangGraph
         result = self._graph.invoke(
@@ -449,7 +438,7 @@ class LangGraphAgent:
             config={"configurable": {"thread_id": session_id}}
         )
 
-        self._log(f"=== 请求处理完成 ===")
+        log(f"=== 请求处理完成 ===", "LangGraph")
         return {
             "answer": result["answer"],
             "feeling": result["feeling"],

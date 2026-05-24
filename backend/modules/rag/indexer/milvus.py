@@ -13,6 +13,7 @@ try:
 except ImportError:
     MILVUS_AVAILABLE = False
 
+from modules.logger import log, exception
 from .base import BaseIndexer
 
 
@@ -58,7 +59,7 @@ class MilvusIndexer(BaseIndexer):
             connections.connect("default", host="localhost", port="19530")
             return True
         except Exception as e:
-            print(f"连接 Milvus 失败: {e}")
+            exception(f"连接 Milvus 失败: {e}", "MilvusIndexer", e)
             return False
 
     def build_index(self, source_dir: str) -> Dict[str, Any]:
@@ -120,11 +121,11 @@ class MilvusIndexer(BaseIndexer):
             if utility.has_collection(self.collection_name):
                 self.collection = Collection(self.collection_name)
                 self.collection.load()
-                print(f"Milvus 集合加载成功: {self.collection_name}")
+                log(f"Milvus 集合加载成功: {self.collection_name}", "MilvusIndexer")
                 return True
             return False
         except Exception as e:
-            print(f"加载 Milvus 集合失败: {e}")
+            exception(f"加载 Milvus 集合失败: {e}", "MilvusIndexer", e)
             return False
 
     def _create_collection(self):
@@ -158,7 +159,7 @@ class MilvusIndexer(BaseIndexer):
             index_params=self.index_params
         )
         
-        print(f"Milvus 集合创建成功: {self.collection_name} (维度: {self.dim})")
+        log(f"Milvus 集合创建成功: {self.collection_name} (维度: {self.dim})", "MilvusIndexer")
 
     def _load_and_embed_documents(self, source_dir: str) -> bool:
         """
@@ -190,10 +191,10 @@ class MilvusIndexer(BaseIndexer):
             self.collection.flush()
             self.collection.load()
             
-            print(f"向量化完成，共生成 {insert_result.insert_count} 个向量")
+            log(f"向量化完成，共生成 {insert_result.insert_count} 个向量", "MilvusIndexer")
             return True
         except Exception as e:
-            print(f"向量化失败: {e}")
+            exception(f"向量化失败: {e}", "MilvusIndexer", e)
             return False
 
     def add_documents(self, documents: List[Document]) -> bool:
@@ -207,7 +208,7 @@ class MilvusIndexer(BaseIndexer):
             添加成功返回 True，失败返回 False
         """
         if not self.collection:
-            print("索引未初始化")
+            log("索引未初始化", "MilvusIndexer")
             return False
 
         try:
@@ -224,7 +225,7 @@ class MilvusIndexer(BaseIndexer):
             
             return True
         except Exception as e:
-            print(f"添加文档失败: {e}")
+            exception(f"添加文档失败: {e}", "MilvusIndexer", e)
             return False
 
     def similarity_search(self, query: str, k: int = 3) -> List[Document]:
@@ -265,7 +266,7 @@ class MilvusIndexer(BaseIndexer):
             
             return docs
         except Exception as e:
-            print(f"相似度搜索失败: {e}")
+            exception(f"相似度搜索失败: {e}", "MilvusIndexer", e)
             return []
 
     def get_retriever(self, **kwargs):
@@ -311,7 +312,7 @@ class MilvusIndexer(BaseIndexer):
                 self.collection = None
             return True
         except Exception as e:
-            print(f"删除集合失败: {e}")
+            exception(f"删除集合失败: {e}", "MilvusIndexer", e)
             return False
 
     def get_collection_stats(self) -> Dict[str, Any]:
@@ -332,5 +333,5 @@ class MilvusIndexer(BaseIndexer):
                 "dimension": self.dim
             }
         except Exception as e:
-            print(f"获取统计信息失败: {e}")
+            exception(f"获取统计信息失败: {e}", "MilvusIndexer", e)
             return {"vector_count": 0}

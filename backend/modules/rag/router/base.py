@@ -17,6 +17,8 @@
 
 from typing import Optional, Dict, Any
 
+from modules.logger import log
+
 
 class BaseRouter:
     """
@@ -50,7 +52,7 @@ class BaseRouter:
         Returns:
             需要检索返回 True，否则返回 False，默认返回 True
         """
-        print("[WARN] BaseRouter.should_retrieve: 使用基类默认实现（未实现具体逻辑）")
+        log("[WARN] BaseRouter.should_retrieve: 使用基类默认实现（未实现具体逻辑）", "Router")
         return True
 
     def select_knowledge_base(self, query: str) -> Optional[str]:
@@ -65,7 +67,7 @@ class BaseRouter:
         Returns:
             知识库名称，None 表示使用默认知识库
         """
-        print("[WARN] BaseRouter.select_knowledge_base: 使用基类默认实现（未实现具体逻辑）")
+        log("[WARN] BaseRouter.select_knowledge_base: 使用基类默认实现（未实现具体逻辑）", "Router")
         return None
 
     def select_retrieval_strategy(self, query: str) -> Dict[str, Any]:
@@ -80,5 +82,5 @@ class BaseRouter:
         Returns:
             检索策略配置字典，默认返回空字典
         """
-        print("[WARN] BaseRouter.select_retrieval_strategy: 使用基类默认实现（未实现具体逻辑）")
+        log("[WARN] BaseRouter.select_retrieval_strategy: 使用基类默认实现（未实现具体逻辑）", "Router")
         return {}

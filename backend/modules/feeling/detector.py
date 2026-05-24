@@ -7,6 +7,8 @@ import re
 from typing import Dict, Optional, Any
 import json
 
+from modules.logger import log, exception
+
 
 class FeelingDetector:
     """
@@ -161,7 +163,7 @@ class FeelingDetector:
             result = json.loads(response.content)
             return result
         except Exception as e:
-            print(f"LLM 情绪分析失败: {e}")
+            exception(f"LLM 情绪分析失败: {e}", "FeelingDetector", e)
             return None
 
     def detect(self, text: str) -> Dict[str, Any]:

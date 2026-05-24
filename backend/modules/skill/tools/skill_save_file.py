@@ -64,7 +64,7 @@ from pathlib import Path
 from typing import Any
 from pydantic import BaseModel, Field, PrivateAttr
 from langchain_core.tools import BaseTool
-from modules.logger import log
+from modules.logger import log, exception
 from .factory import SkillToolFactory
 
 
@@ -103,7 +103,7 @@ class SkillSaveFileTool(BaseTool):
             log(f"文件保存成功: {target_path}", module="Skill.Tools")
             return f"文件已保存: {target_path}"
         except Exception as e:
-            log(f"文件保存失败: {e}", module="Skill.Tools")
+            exception(f"文件保存失败: {e}", module="Skill.Tools", exc=e)
             return f"文件保存失败: {str(e)}"
 
 

@@ -20,6 +20,8 @@ import os
 from typing import List, Optional, Dict
 from langchain_core.documents import Document
 
+from modules.logger import log
+
 
 class BaseRetriever:
     """
@@ -59,7 +61,7 @@ class BaseRetriever:
         Returns:
             相关文档列表，默认返回空列表
         """
-        print("[WARN] BaseRetriever.retrieve: 使用基类默认实现（未实现具体逻辑）")
+        log("[WARN] BaseRetriever.retrieve: 使用基类默认实现（未实现具体逻辑）", "Retriever")
         return []
 
     def get_relevant_documents(self, query: str) -> List[Document]:

@@ -11,6 +11,8 @@ from langchain_community.embeddings.dashscope import DashScopeEmbeddings
 from openai import OpenAI
 from dotenv import load_dotenv
 
+from modules.logger import log, exception
+
 load_dotenv()
 
 
@@ -64,7 +66,7 @@ class LLMClient:
             base_url=self.base_url
         )
 
-        print(f"LangChain LLM 客户端初始化成功 (model={self.model})")
+        log(f"LangChain LLM 客户端初始化成功 (model={self.model})", "AIClient")
 
     @property
     def chat(self):
@@ -98,7 +100,7 @@ class LLMClient:
         try:
             return self.embeddings.embed_query(text)
         except Exception as e:
-            print(f"生成嵌入失败: {e}")
+            exception(f"生成嵌入失败: {e}", "AIClient", e)
             return []
 
 

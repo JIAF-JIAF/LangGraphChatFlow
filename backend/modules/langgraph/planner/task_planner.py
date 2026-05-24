@@ -14,6 +14,8 @@ import os
 from typing import List, Dict, Any, Optional
 from langchain_core.messages import HumanMessage
 
+from modules.logger import log, exception
+
 
 class TaskPlanner:
     """
@@ -101,10 +103,10 @@ class TaskPlanner:
             response = self.llm_client.chat.invoke([HumanMessage(content=prompt)])
             result = response.content.strip()
             level = int(result) if result.isdigit() else 3
-            print(f"[PLANNER] LLM 难度评估: {query[:30]}... -> 难度等级 {level}")
+            log(f"LLM 难度评估: {query[:30]}... -> 难度等级 {level}", "Planner")
             return max(1, min(5, level))  # 确保在1-5范围内
         except Exception as e:
-            print(f"[PLANNER] 难度评估失败，默认等级3: {e}")
+            exception(f"难度评估失败，默认等级3: {e}", "Planner", e)
             return 3
 
     def plan(self, query: str, context: str = "") -> List[Dict[str, Any]]:
@@ -162,7 +164,7 @@ class TaskPlanner:
         
         # 如果返回空数组，说明信息不足无法规划，直接返回单任务让 Agent 处理
         if not subtasks:
-            print(f"[PLANNER] 信息不足无法规划，直接返回单任务")
+            log("信息不足无法规划，直接返回单任务", "Planner")
             return [{
                 "task_id": "task_1",
                 "task_description": query,
@@ -225,10 +227,10 @@ class TaskPlanner:
             return self._validate_and_normalize_tasks(subtasks)
             
         except json.JSONDecodeError as e:
-            print(f"[PLANNER] JSON解析失败: {e}")
+            exception(f"JSON解析失败: {e}", "Planner", e)
             return self._create_fallback_plan(query)
         except Exception as e:
-            print(f"[PLANNER] 规划生成失败: {e}")
+            exception(f"规划生成失败: {e}", "Planner", e)
             return self._create_fallback_plan(query)
 
     def _validate_and_normalize_tasks(self, subtasks: List[Dict]) -> List[Dict[str, Any]]:

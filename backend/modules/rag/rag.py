@@ -5,11 +5,11 @@ RAG 业务模块
 不包含图结构，只负责具体业务逻辑
 """
 
-import time
 from typing import Optional, Dict, Any, List
 from langchain_core.documents import Document
 from langchain_core.messages import HumanMessage
 
+from modules.logger import log, exception
 from modules.rag.indexer import ChromaIndexer
 from modules.rag.retriever import SimpleVectorRetriever
 from modules.rag.generator import BaseGenerator
@@ -37,7 +37,7 @@ class RAGWorkflow:
         """
         self.llm_client = llm_client
         self._verbose = verbose
-        self._log("初始化 RAG 业务模块...")
+        log("初始化 RAG 业务模块...", "RAG")
 
         # 动态初始化索引器（从知识库管理器获取所有知识库）
         self.indexers = {}
@@ -47,7 +47,7 @@ class RAGWorkflow:
                 ai_client=llm_client,
                 collection_name=db_name
             )
-            self._log(f"已初始化知识库索引器: {db_name}")
+            log(f"已初始化知识库索引器: {db_name}", "RAG")
 
         # 初始化检索器
         self.retriever = SimpleVectorRetriever()
@@ -55,12 +55,7 @@ class RAGWorkflow:
         # 初始化路由器（只初始化一次，复用）
         self.router = LLMRouter(llm_client=llm_client)
 
-        self._log("RAG 业务模块初始化完成")
-
-    def _log(self, message: str, level: str = "INFO"):
-        if self._verbose:
-            timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-            print(f"[{timestamp}] [RAG] [{level}] {message}", flush=True)
+        log("RAG 业务模块初始化完成", "RAG")
 
     def should_retrieve(self, query: str) -> bool:
         """
@@ -73,11 +68,11 @@ class RAGWorkflow:
             True - 需要检索
             False - 不需要检索
         """
-        self._log(f"[RAG] 判断是否需要检索: {query[:30]}...")
+        log(f"[RAG] 判断是否需要检索: {query[:30]}...", "RAG")
 
         need = self.router.should_retrieve(query)
 
-        self._log(f"[RAG] 检索决策: {need}")
+        log(f"[RAG] 检索决策: {need}", "RAG")
         return need
 
     def select_knowledge_base(self, query: str) -> str:
@@ -92,7 +87,7 @@ class RAGWorkflow:
         """
         kb = self.router.select_knowledge_base(query)
 
-        self._log(f"[RAG] 选择的知识库: {kb}")
+        log(f"[RAG] 选择的知识库: {kb}", "RAG")
         return kb
 
     def switch_knowledge_base(self, name: str) -> bool:
@@ -108,7 +103,7 @@ class RAGWorkflow:
         if name in self.indexers:
             self.retriever.indexer = self.indexers[name]
             self.retriever._init_retriever()
-            self._log(f"[RAG] 已切换到知识库: {name}")
+            log(f"[RAG] 已切换到知识库: {name}", "RAG")
             return True
         return False
 
@@ -147,7 +142,7 @@ class RAGWorkflow:
                 queries.insert(0, query)
             return queries[:5]  # 最多返回5个
         except Exception as e:
-            self._log(f"[RAG] 查询扩展失败: {e}")
+            exception(f"[RAG] 查询扩展失败: {e}", "RAG", e)
             return [query]
 
     def retrieve(self, query: str) -> List[Document]:
@@ -160,11 +155,11 @@ class RAGWorkflow:
         Returns:
             检索到的文档列表
         """
-        self._log(f"[RAG] 执行检索: {query[:30]}...")
+        log(f"[RAG] 执行检索: {query[:30]}...", "RAG")
 
         # 使用查询扩展
         expanded_queries = self._expand_query(query)
-        self._log(f"[RAG] 扩展查询词: {expanded_queries}")
+        log(f"[RAG] 扩展查询词: {expanded_queries}", "RAG")
 
         # 合并多次检索结果（去重）
         all_documents = {}
@@ -177,7 +172,7 @@ class RAGWorkflow:
                     all_documents[key] = doc
 
         documents = list(all_documents.values())
-        self._log(f"[RAG] 检索到 {len(documents)} 个文档")
+        log(f"[RAG] 检索到 {len(documents)} 个文档", "RAG")
 
         return documents
 
@@ -196,7 +191,7 @@ class RAGWorkflow:
             - answer: 生成的回答
             - error: 错误信息（如果失败）
         """
-        self._log(f"[RAG] 生成回答 (文档数: {len(documents)})")
+        log(f"[RAG] 生成回答 (文档数: {len(documents)})", "RAG")
 
         try:
             if not documents:
@@ -225,7 +220,7 @@ class RAGWorkflow:
                 #     answer = context
                 #     success = len(context) > 50
             
-            self._log(f"[RAG] 生成回答完成: {answer[:50]}...")
+            log(f"[RAG] 生成回答完成: {answer[:50]}...", "RAG")
 
             return {
                 "success": success,
@@ -233,7 +228,7 @@ class RAGWorkflow:
                 "error": None
             }
         except Exception as e:
-            self._log(f"[RAG] 生成回答失败: {e}")
+            exception(f"[RAG] 生成回答失败: {e}", "RAG", e)
             return {
                 "success": False,
                 "answer": "",
@@ -247,13 +242,13 @@ class RAGWorkflow:
         Args:
             source_dir: 知识库目录
         """
-        self._log(f"[RAG] 构建索引...")
+        log(f"[RAG] 构建索引...", "RAG")
 
         for kb_name, indexer in self.indexers.items():
             kb_source_dir = f"{source_dir}/{kb_name}"
             if hasattr(indexer, 'build_index'):
                 try:
                     indexer.build_index(kb_source_dir)
-                    self._log(f"[RAG] 知识库 {kb_name} 索引构建完成")
+                    log(f"[RAG] 知识库 {kb_name} 索引构建完成", "RAG")
                 except Exception as e:
-                    self._log(f"[RAG] 知识库 {kb_name} 索引构建失败: {e}")
+                    exception(f"[RAG] 知识库 {kb_name} 索引构建失败: {e}", "RAG", e)

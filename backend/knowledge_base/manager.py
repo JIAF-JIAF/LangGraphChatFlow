@@ -6,6 +6,7 @@ import os
 import json
 from datetime import datetime
 from dotenv import load_dotenv
+from modules.logger import log, exception
 
 load_dotenv()
 
@@ -22,7 +23,7 @@ class KnowledgeBaseManager:
                 with open(self.metadata_file, 'r', encoding='utf-8') as f:
                     return json.load(f)
             except Exception as e:
-                print(f"加载元数据失败: {e}")
+                exception(f"加载元数据失败: {e}", "KBManager", e)
         return {}
 
     def save_metadata(self):

@@ -9,6 +9,7 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify
 from api.skill_installer import get_installer
 from modules.skill import SkillManager, SkillLoader
+from modules.logger import log, exception
 
 skill_install_bp = Blueprint('skill_install', __name__, url_prefix='/skills')
 
@@ -65,7 +66,7 @@ def install_skill():
             }), 400
 
     except Exception as e:
-        print(f"[SkillInstall] 安装失败: {e}")
+        exception(f"安装失败: {e}", "SkillInstall", e)
         return jsonify({
             "status": "error",
             "message": f"安装失败: {str(e)}"
@@ -99,7 +100,7 @@ def uninstall_skill(skill_name):
             }), 400
 
     except Exception as e:
-        print(f"[SkillInstall] 卸载失败: {e}")
+        exception(f"卸载失败: {e}", "SkillInstall", e)
         return jsonify({
             "status": "error",
             "message": f"卸载失败: {str(e)}"
@@ -147,7 +148,7 @@ def list_skills():
             "count": len(skill_list)
         })
     except Exception as e:
-        print(f"[SkillInstall] 获取列表失败: {e}")
+        exception(f"获取列表失败: {e}", "SkillInstall", e)
         return jsonify({
             "status": "error",
             "message": str(e)
@@ -180,7 +181,7 @@ def get_skill(skill_name):
                 "message": "Skill 不存在"
             }), 404
     except Exception as e:
-        print(f"[SkillInstall] 获取 Skill 详情失败: {e}")
+        exception(f"获取 Skill 详情失败: {e}", "SkillInstall", e)
         return jsonify({
             "status": "error",
             "message": str(e)
@@ -214,7 +215,7 @@ def get_skill_reference(skill_name, ref_path):
                 "message": "引用文件不存在"
             }), 404
     except Exception as e:
-        print(f"[SkillInstall] 获取引用文件失败: {e}")
+        exception(f"获取引用文件失败: {e}", "SkillInstall", e)
         return jsonify({
             "status": "error",
             "message": str(e)
@@ -240,7 +241,7 @@ def reload_skills():
             "count": len(skills)
         })
     except Exception as e:
-        print(f"[SkillInstall] 重新加载失败: {e}")
+        exception(f"重新加载失败: {e}", "SkillInstall", e)
         return jsonify({
             "status": "error",
             "message": str(e)

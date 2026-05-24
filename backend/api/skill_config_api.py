@@ -8,6 +8,7 @@ import os
 from datetime import datetime
 from flask import Blueprint, request, jsonify
 from modules.skill import SkillManager, SkillLoader
+from modules.logger import log, exception
 
 skill_config_bp = Blueprint('skill_config', __name__, url_prefix='/api/skills')
 
@@ -56,7 +57,7 @@ def get_skills():
             "count": len(skill_list)
         })
     except Exception as e:
-        print(f"获取 Skill 列表失败: {e}")
+        exception(f"获取 Skill 列表失败: {e}", "SkillConfig", e)
         return jsonify({
             "status": "error",
             "message": str(e)
@@ -137,7 +138,7 @@ def upload_skill():
             }
         }), 201
     except Exception as e:
-        print(f"上传 Skill 失败: {e}")
+        exception(f"上传 Skill 失败: {e}", "SkillConfig", e)
         return jsonify({
             "status": "error",
             "message": str(e)
@@ -172,7 +173,7 @@ def delete_skill(skill_name):
             "message": "Skill 删除成功"
         })
     except Exception as e:
-        print(f"删除 Skill 失败: {e}")
+        exception(f"删除 Skill 失败: {e}", "SkillConfig", e)
         return jsonify({
             "status": "error",
             "message": str(e)
@@ -199,7 +200,7 @@ def reload_skills():
             "count": len(skill_manager.list_skills())
         })
     except Exception as e:
-        print(f"重新加载 Skill 失败: {e}")
+        exception(f"重新加载 Skill 失败: {e}", "SkillConfig", e)
         return jsonify({
             "status": "error",
             "message": str(e)

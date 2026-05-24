@@ -17,6 +17,8 @@ from typing import Optional, Dict, Any, List
 from langchain_classic.agents import create_tool_calling_agent, AgentExecutor
 from langchain_classic.tools import BaseTool
 from pydantic import BaseModel, Field
+
+from modules.logger import log
 from modules.prompt import get_role_set_from_feeling
 from mcp_module.context import set_value, remove_value
 
@@ -100,7 +102,7 @@ class Agent:
         """
         self.prompt = new_prompt
         self._build_agent()
-        print(f"[Agent] Prompt 已更新")
+        log(f"Prompt 已更新", "Agent")
 
     def set_feeling(self, feeling: Dict[str, Any]):
         """
@@ -110,7 +112,7 @@ class Agent:
             feeling: 情绪对象，格式: {"feeling": str, "score": int}
         """
         self._feeling = feeling
-        print(f"[Agent] 情绪状态已设置: {feeling}")
+        log(f"情绪状态已设置: {feeling}", "Agent")
 
     def invoke(self, input: str, session_id: str = "default", chat_history: List = None, feeling: Dict[str, Any] = None, uid: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -169,7 +171,7 @@ class Agent:
         Returns:
             包含 content 和 tool_calls 的字典
         """
-        print(f"\n[Agent] 收到消息 - Session: {session_id}, Message: {user_message}", flush=True)
+        log(f"收到消息 - Session: {session_id}, Message: {user_message}", "Agent")
         result = self.invoke(user_message, session_id)
         return {
             "content": result["answer"],

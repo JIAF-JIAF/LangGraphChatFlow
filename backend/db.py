@@ -10,12 +10,12 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 
-# 添加模块路径
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from modules.ai_client import AIClient
 from modules.rag.indexer import ChromaIndexer
 from modules.document_loaders import DocumentLoaderFactory
+from modules.logger import log, exception
 from knowledge_base import kb_manager
 from api.mcp_config_api import mcp_config_bp
 from api.skill_install_api import skill_install_bp
@@ -74,7 +74,7 @@ def get_database_stats(db_name):
             return stats
         return {"vector_count": 0}
     except Exception as e:
-        print(f"获取数据库统计失败: {e}")
+        exception(f"获取数据库统计失败: {e}", "DB", e)
         return {"vector_count": 0}
 
 @app.route('/databases', methods=['GET'])
@@ -100,7 +100,7 @@ def get_databases():
             "total": len(result)
         })
     except Exception as e:
-        print(f"获取数据库列表失败: {e}")
+        exception(f"获取数据库列表失败: {e}", "DB", e)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/databases', methods=['POST'])
@@ -134,7 +134,7 @@ def create_database():
             "data": {"name": db_name, "description": description}
         })
     except Exception as e:
-        print(f"创建数据库失败: {e}")
+        exception(f"创建数据库失败: {e}", "DB", e)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/databases/<db_name>', methods=['GET'])
@@ -160,7 +160,7 @@ def get_database(db_name):
             }
         })
     except Exception as e:
-        print(f"获取数据库详情失败: {e}")
+        exception(f"获取数据库详情失败: {e}", "DB", e)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/databases/<db_name>', methods=['PUT'])
@@ -179,7 +179,7 @@ def update_database(db_name):
             "message": "数据库信息更新成功"
         })
     except Exception as e:
-        print(f"更新数据库失败: {e}")
+        exception(f"更新数据库失败: {e}", "DB", e)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/databases/<db_name>', methods=['DELETE'])
@@ -202,7 +202,7 @@ def delete_database(db_name):
             "message": "数据库删除成功"
         })
     except Exception as e:
-        print(f"删除数据库失败: {e}")
+        exception(f"删除数据库失败: {e}", "DB", e)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/databases/<db_name>/upload', methods=['POST'])
@@ -230,7 +230,7 @@ def upload_files(db_name):
                 uploaded_files.append(filename)
                 # 先添加文档（不带统计信息）
                 kb_manager.add_document(db_name, filename)
-                print(f"文件已保存: {file_path}")
+                log(f"文件已保存: {file_path}", "DB")
 
         if not uploaded_files:
             return jsonify({"status": "error", "message": "没有有效的文件"}), 400
@@ -264,7 +264,7 @@ def upload_files(db_name):
             return jsonify({"status": "error", "message": result.get("message", "向量化失败")}), 500
 
     except Exception as e:
-        print(f"上传文件失败: {e}")
+        exception(f"上传文件失败: {e}", "DB", e)
         import traceback
         traceback.print_exc()
         return jsonify({"status": "error", "message": str(e)}), 500

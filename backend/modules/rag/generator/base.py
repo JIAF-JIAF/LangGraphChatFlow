@@ -18,6 +18,8 @@
 from typing import List, Optional, Dict, Any
 from langchain_core.documents import Document
 
+from modules.logger import log
+
 
 class BaseGenerator:
     """
@@ -57,7 +59,7 @@ class BaseGenerator:
         Returns:
             提示模板实例，默认返回 None
         """
-        print("[WARN] BaseGenerator._build_prompt: 使用基类默认实现（未实现具体逻辑）")
+        log("[WARN] BaseGenerator._build_prompt: 使用基类默认实现（未实现具体逻辑）", "Generator")
         return None
 
     def generate(self, query: str, documents: List[Document]) -> str:
@@ -73,5 +75,5 @@ class BaseGenerator:
         Returns:
             生成的回答文本，默认返回空字符串
         """
-        print("[WARN] BaseGenerator.generate: 使用基类默认实现（未实现具体逻辑）")
+        log("[WARN] BaseGenerator.generate: 使用基类默认实现（未实现具体逻辑）", "Generator")
         return ""

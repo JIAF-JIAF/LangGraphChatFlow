@@ -6,6 +6,7 @@ from typing import List
 from langchain_core.documents import Document
 from langchain_community.document_loaders import PyPDFLoader
 
+from modules.logger import log, exception
 from .loader_factory import BaseDocumentLoader, DocumentLoaderFactory
 
 
@@ -25,7 +26,7 @@ class PDFDocumentLoader(BaseDocumentLoader):
             loader = PyPDFLoader(self.file_path)
             return loader.load()
         except Exception as e:
-            print(f"加载 PDF 文档失败: {e}")
+            exception(f"加载 PDF 文档失败: {e}", "PDFLoader", e)
             return []
 
 

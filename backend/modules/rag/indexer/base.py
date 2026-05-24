@@ -22,6 +22,7 @@ from typing import List, Optional, Dict, Any
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
+from modules.logger import log
 from modules.document_loaders import DocumentLoaderFactory
 
 
@@ -69,7 +70,7 @@ class BaseIndexer:
         Returns:
             索引构建结果字典，包含 status、message、count 等信息
         """
-        print("[WARN] BaseIndexer.build_index: 使用基类默认实现（未实现具体逻辑）")
+        log("[WARN] BaseIndexer.build_index: 使用基类默认实现（未实现具体逻辑）", "Indexer")
         return {"status": "error", "message": "索引器未实现"}
 
     def load_index(self) -> bool:
@@ -81,7 +82,7 @@ class BaseIndexer:
         Returns:
             加载成功返回 True，失败返回 False，默认返回 False
         """
-        print("[WARN] BaseIndexer.load_index: 使用基类默认实现（未实现具体逻辑）")
+        log("[WARN] BaseIndexer.load_index: 使用基类默认实现（未实现具体逻辑）", "Indexer")
         return False
 
     def add_documents(self, documents: List[Document]) -> bool:
@@ -96,7 +97,7 @@ class BaseIndexer:
         Returns:
             添加成功返回 True，失败返回 False，默认返回 False
         """
-        print("[WARN] BaseIndexer.add_documents: 使用基类默认实现（未实现具体逻辑）")
+        log("[WARN] BaseIndexer.add_documents: 使用基类默认实现（未实现具体逻辑）", "Indexer")
         return False
 
     def get_retriever(self, **kwargs):
@@ -111,7 +112,7 @@ class BaseIndexer:
         Returns:
             检索器实例，默认返回 None
         """
-        print("[WARN] BaseIndexer.get_retriever: 使用基类默认实现（未实现具体逻辑）")
+        log("[WARN] BaseIndexer.get_retriever: 使用基类默认实现（未实现具体逻辑）", "Indexer")
         return None
 
     def _load_and_split_documents(self, source_dir: str) -> Optional[List[Document]]:
@@ -125,7 +126,7 @@ class BaseIndexer:
             分割后的 Document 列表，失败返回 None
         """
         if not os.path.exists(source_dir):
-            print(f"源目录不存在: {source_dir}")
+            log(f"源目录不存在: {source_dir}", "Indexer")
             return None
 
         documents = []
@@ -135,13 +136,13 @@ class BaseIndexer:
                 docs = DocumentLoaderFactory.load(file_path)
                 if docs:
                     documents.extend(docs)
-                    print(f"加载文档: {filename}")
+                    log(f"加载文档: {filename}", "Indexer")
 
         if not documents:
-            print("未找到可加载的文档")
+            log("未找到可加载的文档", "Indexer")
             return None
 
         split_docs = self.text_splitter.split_documents(documents)
-        print(f"文档分割完成，共 {len(split_docs)} 个片段")
+        log(f"文档分割完成，共 {len(split_docs)} 个片段", "Indexer")
         
         return split_docs

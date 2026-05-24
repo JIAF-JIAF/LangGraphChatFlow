@@ -12,6 +12,8 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from dotenv import load_dotenv
 
+from modules.logger import log
+
 load_dotenv()
 
 
@@ -50,7 +52,7 @@ class RateLimiter:
             初始化后的 Limiter 实例，限流禁用时返回 None
         """
         if not self.enabled:
-            print("限流功能已禁用")
+            log("限流功能已禁用", "RateLimiter")
             return None
 
         storage_uri = os.getenv("RATE_LIMIT_STORAGE_URI") or "memory://"
@@ -65,7 +67,7 @@ class RateLimiter:
             default_limits=[self._format_limit(default_limit)]
         )
 
-        print(f"限流功能已启用: 默认限制 {default_limit}")
+        log(f"限流功能已启用: 默认限制 {default_limit}", "RateLimiter")
         return self.limiter
 
     def get_limit(self, limit_name: str) -> Optional[str]:

@@ -12,6 +12,7 @@ from modules.assistant import Agent as LangChainAgent
 from modules.prompt import create_prompt
 from modules.feeling import FeelingDetector
 from modules.tools import ToolManager
+from modules.logger import log
 
 
 class AssistantFactory:
@@ -32,19 +33,19 @@ class AssistantFactory:
     @staticmethod
     def _init_components():
         """初始化所有系统组件"""
-        print("\n[1/4] 初始化 AI 客户端...")
+        log("初始化 AI 客户端...", "Factory")
         ai_client = AIClient()
-        print("AI 客户端初始化完成")
+        log("AI 客户端初始化完成", "Factory")
 
-        print("\n[2/4] 初始化 RAG 工作流...")
+        log("初始化 RAG 工作流...", "Factory")
         rag_workflow = AssistantFactory._try_init_rag_workflow(ai_client)
-        print("RAG 工作流初始化完成")
+        log("RAG 工作流初始化完成", "Factory")
 
-        print("\n[3/4] 初始化 LangChain Agent（含技能工具）...")
+        log("初始化 LangChain Agent（含技能工具）...", "Factory")
         langchain_agent = AssistantFactory._try_init_langchain_agent(ai_client)
-        print("LangChain Agent 初始化完成")
+        log("LangChain Agent 初始化完成", "Factory")
 
-        print("\n[4/4] 初始化 LangGraph 调度层...")
+        log("初始化 LangGraph 调度层...", "Factory")
         checkpointer, task_planner = AssistantFactory._init_langgraph_components(ai_client)
         feeling_detector = AssistantFactory._try_init_feeling_detector(ai_client)
 
@@ -56,7 +57,7 @@ class AssistantFactory:
             task_planner=task_planner,
             verbose=True,
         )
-        print("LangGraph 调度层初始化完成")
+        log("LangGraph 调度层初始化完成", "Factory")
 
         return {
             'assistant': assistant,
@@ -73,7 +74,7 @@ class AssistantFactory:
         try:
             return FeelingDetector(llm_client=ai_client)
         except Exception as e:
-            print("感情侦测器初始化失败: {}".format(e))
+            log("感情侦测器初始化失败: {}".format(e), "Factory")
             return None
 
     @staticmethod
@@ -83,7 +84,7 @@ class AssistantFactory:
             workflow.build_index()
             return workflow
         except Exception as e:
-            print("RAG 工作流初始化警告: {}".format(e))
+            log("RAG 工作流初始化警告: {}".format(e), "Factory")
             return None
 
     @staticmethod
@@ -99,7 +100,7 @@ class AssistantFactory:
                 "aiClient": ai_client
             })
         except Exception as e:
-            print("LangChain Agent 初始化失败: {}".format(e))
+            log("LangChain Agent 初始化失败: {}".format(e), "Factory")
             return None
 
     @staticmethod

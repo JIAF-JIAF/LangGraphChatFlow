@@ -6,6 +6,7 @@ from typing import List
 from langchain_core.documents import Document
 from langchain_community.document_loaders import UnstructuredWordDocumentLoader
 
+from modules.logger import log, exception
 from .loader_factory import BaseDocumentLoader, DocumentLoaderFactory
 
 
@@ -25,7 +26,7 @@ class DOCXDocumentLoader(BaseDocumentLoader):
             loader = UnstructuredWordDocumentLoader(self.file_path)
             return loader.load()
         except Exception as e:
-            print(f"加载 DOCX 文档失败: {e}")
+            exception(f"加载 DOCX 文档失败: {e}", "DOCXLoader", e)
             return []
 
 

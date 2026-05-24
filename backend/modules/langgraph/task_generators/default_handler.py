@@ -5,13 +5,14 @@
 from typing import List, Dict, Any, Optional
 from ..state import AgentState
 from .base import TaskGeneratorHandler
+from modules.logger import log
 
 
 class DefaultTaskGenerator(TaskGeneratorHandler):
     """默认任务生成器（兜底）"""
     
     def _try_handle(self, state: AgentState, planner, query: str) -> Optional[List[Dict[str, Any]]]:
-        print(f"[任务生成] 使用默认规划策略")
+        log("使用默认规划策略", "TaskGenerator")
         
         context_parts = []
         if state.get("answer"):

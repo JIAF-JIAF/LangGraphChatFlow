@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 
 from modules.factory import AssistantFactory
 from modules.rate_limit import RateLimiter
+from modules.logger import log, exception
 
 if sys.stdout.encoding != 'utf-8':
     import codecs
@@ -45,21 +46,21 @@ def create_app():
     app.extensions['sessions'] = {}
     app.extensions['assistant'] = None
 
-    print("=" * 50)
-    print("智能客服系统启动中... (LangGraph 版本)")
-    print("=" * 50)
+    log("=" * 50, "App")
+    log("智能客服系统启动中... (LangGraph 版本)", "App")
+    log("=" * 50, "App")
 
     assistant, _ = AssistantFactory.create_assistant()
     app.extensions['assistant'] = assistant
 
-    print("\n" + "=" * 50)
-    print("智能客服系统就绪!")
-    print("=" * 50)
-    print("\n服务地址: http://localhost:5000")
-    print("API 文档:")
-    print("  GET  /start  - 检查服务状态")
-    print("  POST /chat   - 发送对话请求")
-    print("=" * 50 + "\n")
+    log("=" * 50, "App")
+    log("智能客服系统就绪!", "App")
+    log("=" * 50, "App")
+    log("服务地址: http://localhost:5000", "App")
+    log("API 文档:", "App")
+    log("  GET  /start  - 检查服务状态", "App")
+    log("  POST /chat   - 发送对话请求", "App")
+    log("=" * 50, "App")
 
     @app.route('/start', methods=['GET'])
     @app.extensions['rate_limiter'].limit("start_limit")
@@ -88,8 +89,8 @@ def create_app():
             user_message = data['message']
             session_id = data.get('session_id', str(uuid.uuid4()))
 
-            print("\n[对话请求] Session: {}".format(session_id), flush=True)
-            print("用户: {}".format(user_message), flush=True)
+            log("对话请求 Session: {}".format(session_id), "App")
+            log("用户: {}".format(user_message), "App")
 
             assistant = app.extensions['assistant']
             result = assistant.invoke(user_message, session_id)
@@ -105,7 +106,7 @@ def create_app():
             return jsonify(response)
 
         except Exception as e:
-            print("对话处理异常: {}".format(e))
+            exception("对话处理异常: {}".format(e), "App", e)
             import traceback
             traceback.print_exc()
             return jsonify({"error": str(e)}), 500

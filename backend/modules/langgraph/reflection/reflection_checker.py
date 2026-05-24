@@ -16,6 +16,8 @@ from typing import Dict, Any, Optional, List
 from langchain_core.messages import HumanMessage
 from langchain_core.documents import Document
 
+from modules.logger import log, exception
+
 
 class ReflectionChecker:
     """
@@ -235,10 +237,10 @@ class ReflectionChecker:
             return self._validate_result(result)
             
         except json.JSONDecodeError as e:
-            print(f"[REFLECTION] JSON解析失败: {e}")
+            exception(f"JSON解析失败: {e}", "Reflection", e)
             return self._create_fallback_result(answer)
         except Exception as e:
-            print(f"[REFLECTION] 反思校验失败: {e}")
+            exception(f"反思校验失败: {e}", "Reflection", e)
             return self._create_fallback_result(answer)
 
     def _validate_result(self, result: Dict) -> Dict[str, Any]:

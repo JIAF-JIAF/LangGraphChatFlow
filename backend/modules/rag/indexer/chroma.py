@@ -8,6 +8,7 @@ from langchain_core.documents import Document
 from langchain_community.vectorstores import Chroma
 from langchain_core.tools import StructuredTool
 
+from modules.logger import log, exception
 from .base import BaseIndexer
 
 
@@ -45,7 +46,7 @@ class ChromaIndexer(BaseIndexer):
             return {"status": "error", "message": "源目录不能为空"}
         
         if not os.path.exists(source_dir):
-            print(f"源目录不存在，自动创建: {source_dir}")
+            log(f"源目录不存在，自动创建: {source_dir}", "ChromaIndexer")
             os.makedirs(source_dir, exist_ok=True)
         
         # 尝试加载已存在的向量存储
@@ -107,10 +108,10 @@ class ChromaIndexer(BaseIndexer):
                 collection_name=self.collection_name
             )
             count = self.vector_store._collection.count()
-            print(f"Chroma 索引加载成功，共 {count} 个向量")
+            log(f"Chroma 索引加载成功，共 {count} 个向量", "ChromaIndexer")
             return count > 0
         except Exception as e:
-            print(f"加载索引失败: {e}")
+            exception(f"加载索引失败: {e}", "ChromaIndexer", e)
             return False
 
     def load_vector_store(self) -> bool:
@@ -146,10 +147,10 @@ class ChromaIndexer(BaseIndexer):
                 collection_name=self.collection_name
             )
             self.persist()
-            print(f"向量化完成，共生成 {self.vector_store._collection.count()} 个向量")
+            log(f"向量化完成，共生成 {self.vector_store._collection.count()} 个向量", "ChromaIndexer")
             return True
         except Exception as e:
-            print(f"向量化失败: {e}")
+            exception(f"向量化失败: {e}", "ChromaIndexer", e)
             return False
 
     def add_documents(self, documents: List[Document]) -> bool:
@@ -163,7 +164,7 @@ class ChromaIndexer(BaseIndexer):
             添加成功返回 True
         """
         if not self.vector_store:
-            print("索引未初始化")
+            log("索引未初始化", "ChromaIndexer")
             return False
 
         try:
@@ -172,7 +173,7 @@ class ChromaIndexer(BaseIndexer):
             self.persist()
             return True
         except Exception as e:
-            print(f"添加文档失败: {e}")
+            exception(f"添加文档失败: {e}", "ChromaIndexer", e)
             return False
 
     def similarity_search(self, query: str, k: int = 3) -> List[Document]:
@@ -238,7 +239,7 @@ class ChromaIndexer(BaseIndexer):
                 self.vector_store = None
             return True
         except Exception as e:
-            print(f"删除集合失败: {e}")
+            exception(f"删除集合失败: {e}", "ChromaIndexer", e)
             return False
 
     def get_collection_stats(self) -> Dict[str, Any]:
@@ -259,7 +260,7 @@ class ChromaIndexer(BaseIndexer):
                 "persist_directory": self.persist_directory
             }
         except Exception as e:
-            print(f"获取统计信息失败: {e}")
+            exception(f"获取统计信息失败: {e}", "ChromaIndexer", e)
             return {"vector_count": 0}
 
     def retrieve_knowledge(self, query: str) -> str:
