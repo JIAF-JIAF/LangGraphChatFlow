@@ -7,12 +7,13 @@ LangGraph 版本
 import uuid
 import sys
 import os
-from flask import Flask, request, jsonify, current_app
+from flask import Flask, request, jsonify, Response, stream_with_context
 from flask_cors import CORS
 from dotenv import load_dotenv
 
 from modules.factory import AssistantFactory
 from modules.rate_limit import RateLimiter
+from modules.sse import SSEEventProcessor, format_sse_event
 from modules.logger import log, exception
 
 if sys.stdout.encoding != 'utf-8':
@@ -60,6 +61,7 @@ def create_app():
     log("API 文档:", "App")
     log("  GET  /start  - 检查服务状态", "App")
     log("  POST /chat   - 发送对话请求", "App")
+    log("  POST /chat/stream - SSE 流式对话", "App")
     log("=" * 50, "App")
 
     @app.route('/start', methods=['GET'])
@@ -110,6 +112,50 @@ def create_app():
             import traceback
             traceback.print_exc()
             return jsonify({"error": str(e)}), 500
+
+    @app.route('/chat/stream', methods=['POST'])
+    @app.extensions['rate_limiter'].limit("chat_limit")
+    def chat_stream():
+        """SSE 流式对话接口"""
+        def generate():
+            try:
+                data = request.get_json()
+                if not data or 'message' not in data:
+                    yield format_sse_event({"error": "缺少 message 字段"})
+                    return
+
+                user_message = data['message']
+                session_id = data.get('session_id', str(uuid.uuid4()))
+
+                log("SSE 对话请求 Session: {}".format(session_id), "App")
+                log("用户: {}".format(user_message), "App")
+
+                assistant = app.extensions['assistant']
+                processor = SSEEventProcessor()
+
+                for event in assistant.stream(user_message, session_id):
+                    for node_name, node_state in event.items():
+                        event_data = processor.process_node(node_name, node_state, session_id)
+                        if event_data:
+                            yield format_sse_event(event_data)
+
+                yield format_sse_event(processor.get_done_event(session_id))
+
+            except Exception as e:
+                exception("SSE 对话处理异常: {}".format(e), "App", e)
+                import traceback
+                traceback.print_exc()
+                yield format_sse_event({"type": "error", "error": str(e)})
+
+        return Response(
+            stream_with_context(generate()),
+            mimetype='text/event-stream',
+            headers={
+                'Cache-Control': 'no-cache',
+                'X-Accel-Buffering': 'no',
+                'Connection': 'keep-alive'
+            }
+        )
 
     @app.errorhandler(429)
     def ratelimit_handler(e):

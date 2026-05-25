@@ -32,7 +32,33 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         db: resolve(__dirname, 'db.html')
+      },
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom'],
+          'preview': [
+            './src/preview/FilePreview.jsx',
+            './src/preview/previews/ExcelPreview.jsx',
+            './src/preview/previews/PdfPreview.jsx',
+            './src/preview/previews/WordPreview.jsx'
+          ]
+        }
+      },
+      treeshake: {
+        preset: 'recommended',
+        moduleSideEffects: false
+      }
+    },
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        dead_code: true,
+        unused: true,
+        drop_console: false
       }
     }
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'zustand', 'axios']
   }
 })

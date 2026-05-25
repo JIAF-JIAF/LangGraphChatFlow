@@ -156,7 +156,7 @@ class LangGraphAgent:
 
         # 设置 RAG 成功标志（用于后续节点判断）
         rag_success = len(documents) > 0
-        self._log(f"[节点: retrieve] RAG 成功: {rag_success}")
+        log(f"[节点: retrieve] RAG 成功: {rag_success}", "LangGraph")
 
         # 使用 list_append reducer，返回新文档（增量）
         return {
@@ -443,6 +443,36 @@ class LangGraphAgent:
             "answer": result["answer"],
             "feeling": result["feeling"],
         }
+
+    def stream(self, query: str, session_id: str = "default", uid: Optional[str] = None):
+        """
+        流式执行 Agent，逐节点返回状态更新
+
+        Args:
+            query: 用户查询
+            session_id: 会话 ID
+            uid: 用户 ID
+
+        Yields:
+            Dict[str, Any]: 每个节点的状态更新
+        """
+        log(f"=== 开始流式处理请求 ===", "LangGraph")
+        log(f"会话ID: {session_id}", "LangGraph")
+        log(f"用户ID: {uid}", "LangGraph")
+        log(f"用户查询: {query}", "LangGraph")
+
+        input_state = {
+            "query": query,
+            "session_id": session_id,
+            "uid": uid,
+        }
+
+        config = {"configurable": {"thread_id": session_id}}
+
+        for event in self._graph.stream(input_state, config, stream_mode="updates"):
+            yield event
+
+        log(f"=== 流式处理完成 ===", "LangGraph")
 
     def get_graph(self):
         """

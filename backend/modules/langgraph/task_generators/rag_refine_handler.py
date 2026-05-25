@@ -5,6 +5,7 @@
 from typing import List, Dict, Any, Optional
 from ..state import AgentState
 from .base import TaskGeneratorHandler
+from modules.logger import log
 
 
 class RagRefineTaskGenerator(TaskGeneratorHandler):

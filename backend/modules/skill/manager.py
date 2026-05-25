@@ -17,6 +17,7 @@ from langchain_core.tools import BaseTool
 from .executor import SkillExecutor
 from .loader import SkillLoader
 from .matcher import SkillMatcher
+from .indexer import SkillIndexer
 from .tools import SkillTools
 from modules.logger import log
 
@@ -35,10 +36,14 @@ class SkillManager:
 
         Args:
             skills_dir: 技能目录路径（默认 "skills"）
-            llm_client: LLM 客户端（保留兼容，当前未使用）
+            llm_client: LLM 客户端（用于技能向量化）
         """
         self._loader = SkillLoader(skills_dir=skills_dir)
-        self._matcher = SkillMatcher(loader=self._loader)
+        
+        self._indexer = SkillIndexer(ai_client=llm_client)
+        self._init_skill_index()
+        
+        self._matcher = SkillMatcher(loader=self._loader, indexer=self._indexer)
         self._executor = SkillExecutor(loader=self._loader)
         self._tools = SkillTools(
             loader=self._loader,
@@ -46,6 +51,21 @@ class SkillManager:
             executor=self._executor,
         )
         log("管理器初始化完成", module="Skill.Manager")
+
+    def _init_skill_index(self) -> None:
+        """
+        初始化技能索引
+        
+        尝试加载已存在的索引，失败则重新构建。
+        """
+        if self._indexer.load_index():
+            log("技能索引加载成功", module="Skill.Manager")
+            return
+
+        skills = self._loader.list_skills()
+        if skills:
+            log(f"开始构建技能索引，共 {len(skills)} 个技能", module="Skill.Manager")
+            self._indexer.index_skills(skills)
 
     def get_tools(self) -> List[BaseTool]:
         """
@@ -80,4 +100,9 @@ class SkillManager:
     def reload(self) -> None:
         """重新加载技能"""
         self._loader.reload()
+        
+        skills = self._loader.list_skills()
+        if skills:
+            self._indexer.index_skills(skills)
+        
         log("管理器已重新加载", module="Skill.Manager")

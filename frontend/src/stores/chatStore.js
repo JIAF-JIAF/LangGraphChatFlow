@@ -1,5 +1,15 @@
 import { create } from 'zustand';
-import { sendMessage as sendMessageApi } from '../api/chat';
+import { sendMessageStream } from '../api/chat';
+
+const NODE_LABELS = {
+  feeling_detect: '正在分析情绪...',
+  router: '正在思考...',
+  retrieve: '正在检索知识库...',
+  plan: '正在规划任务...',
+  execute_task: '正在执行任务...',
+  check_task_complete: '正在检查任务...',
+  call_model: '正在生成回答...'
+};
 
 /**
  * 聊天消息类型定义
@@ -44,6 +54,12 @@ const useChatStore = create((set, get) => ({
   loading: false,
 
   /**
+   * 当前执行节点
+   * @type {string | null}
+   */
+  currentNode: null,
+
+  /**
    * 添加用户消息
    * @param {string} content - 消息内容
    */
@@ -79,44 +95,67 @@ const useChatStore = create((set, get) => ({
   },
 
   /**
-   * 打字机效果显示文本
-   * @param {string} fullText - 完整文本内容
+   * 追加内容到消息
+   * @param {number} id - 消息 ID
+   * @param {string} token - 要追加的 token
    */
-  typeWriter: async (fullText) => {
-    const messageId = Date.now();
-    const { addBotMessage, updateMessage } = get();
-
-    addBotMessage('', messageId);
-
-    for (let i = 0; i < fullText.length; i++) {
-      await new Promise((resolve) => setTimeout(resolve, 30));
-      updateMessage(messageId, fullText.substring(0, i + 1));
-    }
-
-    updateMessage(messageId, fullText, false);
+  appendToMessage: (id, token) => {
+    set((state) => ({
+      messages: state.messages.map((msg) =>
+        msg.id === id ? { ...msg, content: msg.content + token } : msg
+      )
+    }));
   },
 
   /**
-   * 发送消息
+   * 设置当前节点
+   * @param {string | null} node - 当前节点名称
+   */
+  setCurrentNode: (node) => set({ currentNode: node }),
+
+  /**
+   * 获取节点显示文本
+   * @param {string} node - 节点名称
+   * @returns {string} 显示文本
+   */
+  getNodeLabel: (node) => NODE_LABELS[node] || `正在处理: ${node}`,
+
+  /**
+   * 发送消息（SSE 流式）
    * @param {string} message - 用户输入的消息
    */
   sendMessage: async (message) => {
-    const { addUserMessage, typeWriter, setLoading } = get();
+    const { addUserMessage, addBotMessage, appendToMessage, updateMessage, setLoading, setCurrentNode } = get();
 
     addUserMessage(message);
     setLoading(true);
+    setCurrentNode('start');
 
-    try {
-      const response = await sendMessageApi(message, get().sessionId);
-      if (response.reply) {
-        await typeWriter(response.reply);
+    const messageId = Date.now();
+    addBotMessage('', messageId);
+
+    let fullContent = '';
+
+    await sendMessageStream(message, get().sessionId, {
+      onToken: (token) => {
+        fullContent += token;
+        appendToMessage(messageId, token);
+      },
+      onNodeUpdate: (data) => {
+        setCurrentNode(data.node);
+      },
+      onDone: (data) => {
+        updateMessage(messageId, fullContent, false);
+        setLoading(false);
+        setCurrentNode(null);
+      },
+      onError: (error) => {
+        console.error('SSE 错误:', error);
+        updateMessage(messageId, '抱歉，服务暂时不可用，请稍后再试。', false);
+        setLoading(false);
+        setCurrentNode(null);
       }
-    } catch (error) {
-      console.error('发送消息失败:', error);
-      await typeWriter('抱歉，服务暂时不可用，请稍后再试。');
-    } finally {
-      setLoading(false);
-    }
+    });
   },
 
   /**
@@ -131,7 +170,8 @@ const useChatStore = create((set, get) => ({
    */
   resetSession: () => set({
     messages: [{ type: 'bot', content: '您好！我是智能客服，有什么可以帮助您的吗？' }],
-    sessionId: Date.now().toString()
+    sessionId: Date.now().toString(),
+    currentNode: null
   })
 }));
 

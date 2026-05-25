@@ -1,10 +1,9 @@
 """
 Prompt 模块
-定义客服系统的提示模板
-"""
+定义客服系统的提示模板"""
 
 import os
-import json
+import yaml
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 
@@ -14,34 +13,36 @@ from langchain_core.example_selectors import LengthBasedExampleSelector
 from modules.logger import log
 
 
-DEFAULT_CONFIG_PATH = Path(__file__).parent.parent.parent / "config" / "prompt_config.json"
+DEFAULT_CONFIG_PATH = Path(__file__).parent.parent.parent / "config" / "prompt_config.yaml"
 
 
 def _load_prompt_config() -> Dict[str, Any]:
     """
     从配置文件加载 Prompt 配置
-    
+
     支持通过环境变量 PROMPT_CONFIG_PATH 指定配置路径
-    如果未指定，使用默认路径 backend/config/prompt_config.json
-    
+    如果未指定，使用默认路径 backend/config/prompt_config.yaml
+
+    仅支持 YAML 格式 (.yaml / .yml)
+
     Returns:
         配置字典
     """
     config_path = os.environ.get("PROMPT_CONFIG_PATH", str(DEFAULT_CONFIG_PATH))
     config_path = Path(config_path)
-    
+
     if not config_path.is_absolute():
         config_path = Path(__file__).parent.parent.parent / config_path
-    
+
     if not config_path.exists():
         raise FileNotFoundError(
             f"Prompt 配置文件不存在: {config_path}\n"
             f"请确保配置文件存在，或通过环境变量 PROMPT_CONFIG_PATH 指定正确的路径"
         )
-    
+
     with open(config_path, "r", encoding="utf-8") as f:
-        config = json.load(f)
-    
+        config = yaml.safe_load(f)
+
     log(f"已从配置文件加载: {config_path}", "Prompt")
     return config
 

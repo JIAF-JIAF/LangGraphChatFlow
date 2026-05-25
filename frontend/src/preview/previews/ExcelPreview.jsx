@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { convertExcelToWorkbook } from '../utils/excelConverter/index.js';
 
-const { SheetApplicationProvider, SheetApplication } = window.ZONGHENG;
-
 export const ExcelPreview = ({ blob }) => {
   const [workbook, setWorkbook] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const ZONGHENG = window.ZONGHENG || {};
+  const { SheetApplicationProvider, SheetApplication } = ZONGHENG;
 
   useEffect(() => {
     const loadExcel = async () => {
@@ -28,6 +29,14 @@ export const ExcelPreview = ({ blob }) => {
 
     loadExcel();
   }, [blob]);
+
+  if (!SheetApplicationProvider || !SheetApplication) {
+    return (
+      <div className="excel-error">
+        <span>Excel 预览功能需要在向量库管理页面使用</span>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

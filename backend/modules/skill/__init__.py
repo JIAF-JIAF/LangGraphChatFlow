@@ -16,6 +16,7 @@
 from .manager import SkillManager
 from .loader import SkillLoader
 from .matcher import SkillMatcher
+from .indexer import SkillIndexer
 from .executor import SkillExecutor
 from .tools import SkillTools
 from .models import SkillInfo
@@ -24,6 +25,7 @@ __all__ = [
     "SkillManager",
     "SkillLoader",
     "SkillMatcher",
+    "SkillIndexer",
     "SkillExecutor",
     "SkillTools",
     "SkillInfo",

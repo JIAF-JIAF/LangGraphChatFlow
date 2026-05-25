@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import useChatStore from './stores/chatStore';
-import { Header, ChatArea, InputArea } from './components';
+import { Header, ChatArea, InputArea } from './components/chat';
 import './App.css';
 
 /**
@@ -10,7 +10,7 @@ import './App.css';
  * @returns {React.ReactElement}
  */
 export const App = memo((props) => {
-  const { messages, loading, sendMessage } = useChatStore();
+  const { messages, loading, currentNode, getNodeLabel, sendMessage } = useChatStore();
 
   /**
    * 处理发送消息
@@ -23,7 +23,12 @@ export const App = memo((props) => {
   return (
     <div className="app">
       <Header />
-      <ChatArea messages={messages} loading={loading} />
+      <ChatArea 
+        messages={messages} 
+        loading={loading} 
+        currentNode={currentNode}
+        getNodeLabel={getNodeLabel}
+      />
       <InputArea onSend={handleSend} loading={loading} />
     </div>
   );

@@ -17,10 +17,12 @@ import './ChatArea.css';
  * @param {Object} props - 组件属性
  * @param {Message[]} props.messages - 消息列表
  * @param {boolean} props.loading - 是否正在加载
+ * @param {string | null} props.currentNode - 当前执行节点
+ * @param {Function} props.getNodeLabel - 获取节点显示文本
  * @returns {React.ReactElement}
  */
 export const ChatArea = memo((props) => {
-  const { messages, loading } = props;
+  const { messages, loading, currentNode, getNodeLabel } = props;
 
   return (
     <div className="chat-area">
@@ -40,10 +42,19 @@ export const ChatArea = memo((props) => {
         <div className="message-wrapper bot">
           <div className="message bot">
             <div className="message-avatar">🤖</div>
-            <div className="message-content typing-indicator">
-              <span></span>
-              <span></span>
-              <span></span>
+            <div className="message-content">
+              {currentNode ? (
+                <div className="node-status">
+                  <span className="node-spinner"></span>
+                  <span className="node-label">{getNodeLabel(currentNode)}</span>
+                </div>
+              ) : (
+                <div className="typing-indicator">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+              )}
             </div>
           </div>
         </div>

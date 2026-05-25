@@ -16,6 +16,7 @@ from typing import List, Any, Optional
 from langchain_core.tools import BaseTool
 
 from modules.skill import SkillManager
+from modules.logger import log
 from mcp_module import MCPToolService
 
 
