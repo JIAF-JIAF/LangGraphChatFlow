@@ -20,22 +20,21 @@ skill_save_file 工具
 1. Agent 通过 skill_instructions 获取指令："生成 DrawIO XML 并保存为 flowchart.drawio"
 2. Agent 根据用户需求生成 XML 内容
 3. Agent 调用 skill_save_file(
-     skill_name="drawio-skill",
      file_path="flowchart.drawio",
      content="<mxGraph>...</mxGraph>"
    )
-4. 文件保存到：./skills/drawio-skill/output/flowchart.drawio
+4. 文件保存到：./skills/drawio-skill/output/flowchart.drawio（skill_name 从 RunnableConfig 自动获取）
 5. 返回："文件已保存: /path/to/flowchart.drawio"
 
 【参数说明】
-- skill_name: 技能名称（必须）
-  - 来源：当前正在使用的技能名称
 - file_path: 文件相对路径（必须）
   - 相对于技能目录下的 output/ 目录
   - 示例："flowchart.drawio"、"reports/summary.md"
 - content: 文件内容（必须）
   - 由 Agent 生成的文本内容
   - 支持任意文本格式（XML、JSON、Markdown、纯文本等）
+
+注意：skill_name 从 RunnableConfig 自动获取，无需显式传递。
 
 【返回值】
 - 成功："文件已保存: {绝对路径}"
@@ -64,12 +63,12 @@ from pathlib import Path
 from typing import Any
 from pydantic import BaseModel, Field, PrivateAttr
 from langchain_core.tools import BaseTool
+from langchain_core.runnables import RunnableConfig
 from modules.logger import log, exception
 from .factory import SkillToolFactory
 
 
 class SkillSaveFileInput(BaseModel):
-    skill_name: str = Field(description="技能名称")
     file_path: str = Field(description="文件路径，如 output/diagram.drawio")
     content: str = Field(description="文件内容")
 
@@ -85,7 +84,8 @@ class SkillSaveFileTool(BaseTool):
         super().__init__(**data)
         self._loader = loader
     
-    def _run(self, skill_name: str, file_path: str, content: str) -> str:
+    def _run(self, file_path: str, content: str, config: RunnableConfig = None) -> str:
+        skill_name = config.get("configurable", {}).get("skill_name", "") if config else ""
         log(f"skill_save_file 被调用，skill_name={skill_name}, path={file_path}", module="Skill.Tools")
         skill_dir = self._loader.get_skill_path(skill_name)
         

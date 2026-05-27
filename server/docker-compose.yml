@@ -120,7 +120,7 @@ services:
 
   db-frontend:
     build:
-      context: ../frontend
+      context: ../client
       dockerfile: Dockerfile
     container_name: chatbot-db-frontend
     restart: unless-stopped

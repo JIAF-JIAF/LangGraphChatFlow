@@ -17,8 +17,8 @@ skill_reference 工具
 
 【工作流程】
 1. Agent 通过 skill_instructions 获取指令，指令中提到："参考 references/drawio-api.md 了解 XML 格式"
-2. Agent 调用 skill_reference(skill_name="drawio-skill", reference_path="references/drawio-api.md")
-3. 返回文档内容：
+2. Agent 调用 skill_reference(reference_path="references/drawio-api.md")
+3. 返回文档内容（skill_name 从 RunnableConfig 自动获取）：
    ```
    # DrawIO XML API
    
@@ -29,11 +29,11 @@ skill_reference 工具
 4. Agent 根据文档内容生成符合规范的输出
 
 【参数说明】
-- skill_name: 技能名称（必须）
-  - 来源：当前正在使用的技能名称
 - reference_path: 参考文档路径（必须）
   - 相对于技能目录下的 references/ 目录
   - 示例："references/api.md"、"references/template.md"
+
+注意：skill_name 从 RunnableConfig 自动获取，无需显式传递。
 
 【返回值】
 - 成功：参考文档的完整内容
@@ -49,12 +49,12 @@ skill_reference 工具
 from typing import Any
 from pydantic import BaseModel, Field, PrivateAttr
 from langchain_core.tools import BaseTool
+from langchain_core.runnables import RunnableConfig
 from modules.logger import log
 from .factory import SkillToolFactory
 
 
 class SkillReferenceInput(BaseModel):
-    skill_name: str = Field(description="技能名称")
     reference_path: str = Field(description="参考文档路径，如 references/api.md")
 
 
@@ -69,7 +69,8 @@ class SkillReferenceTool(BaseTool):
         super().__init__(**data)
         self._loader = loader
     
-    def _run(self, skill_name: str, reference_path: str) -> str:
+    def _run(self, reference_path: str, config: RunnableConfig = None) -> str:
+        skill_name = config.get("configurable", {}).get("skill_name", "") if config else ""
         log(f"skill_reference 被调用，skill_name={skill_name}, path={reference_path}", module="Skill.Tools")
         content = self._loader.get_reference(skill_name, reference_path)
         

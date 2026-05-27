@@ -23,32 +23,13 @@ skill_run_script 工具
      args="--input data.csv --output result.json",
      timeout=60
    )
-3. 脚本在当前技能目录下执行（skill_name 从上下文自动获取）
+3. 脚本在当前技能目录下执行（skill_name 从 RunnableConfig 自动获取）
 4. 返回脚本的 stdout 输出："数据处理完成，已生成 result.json"
-
-【参数说明】
-- script_path: 脚本相对路径（必须）
-  - 相对于技能目录
-  - 示例："scripts/process.py"、"tools/generate.sh"
-- args: 脚本参数（可选）
-  - 空格分隔的参数字符串
-  - 示例："--input data.csv --output result.json"
-- timeout: 超时时间（可选，默认 30 秒）
-  - 脚本执行的最大等待时间
-  - 超时后自动终止脚本
-
-注意：skill_name 从上下文自动获取，无需显式传递。
 
 【返回值】
 - 成功：脚本的 stdout 输出内容
 - 失败："脚本执行失败: {错误信息}"
 - 超时："脚本执行失败: 执行超时"
-
-【执行环境】
-- 工作目录：技能目录（./skills/{skill_name}/）
-- Python 环境：系统 Python 环境
-- 权限：继承当前进程权限
-- 隔离：每个脚本在独立进程中执行
 
 【典型使用场景】
 - 数据处理脚本：处理 CSV、JSON 等数据文件

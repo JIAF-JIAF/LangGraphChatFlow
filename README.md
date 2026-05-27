@@ -27,7 +27,7 @@
 
 ```
 chart-flow-longgraph/
-├── backend/                      # Python 后端 (Flask)
+├── server/                       # Python 服务端 (Flask)
 │   ├── app.py                   # Flask 主应用入口
 │   ├── db.py                    # 向量库管理 API
 │   ├── DingWebHook.py           # 钉钉 Webhook 入口
@@ -103,7 +103,7 @@ chart-flow-longgraph/
 │   │   ├── memory.py
 │   │   └── redis.py
 │   └── skills/                  # 技能库（SKILL.md 格式）
-├── frontend/                    # React 前端 (Vite)
+├── client/                      # React 客户端 (Vite)
 │   ├── src/
 │   │   ├── api/                 # API 接口封装
 │   │   ├── components/          # React 组件
@@ -599,8 +599,8 @@ RAGWorkflow 支持查询扩展功能，通过 LLM 生成多个相关查询词：
 **第一步：启动 MCP 服务**
 
 ```bash
-# 进入后端目录
-cd backend
+# 进入服务端目录
+cd server
 
 # 安装依赖（首次运行）
 pip install -r requirements.txt
@@ -626,8 +626,8 @@ python app.py
 ### 前端启动
 
 ```bash
-# 新开终端，进入前端目录
-cd frontend
+# 新开终端，进入客户端目录
+cd client
 
 # 安装依赖
 npm install
@@ -1167,8 +1167,8 @@ checkpointer = CheckpointFactory.build(name="memory")
 ### Docker 部署步骤
 
 ```bash
-# 进入后端目录
-cd backend
+# 进入服务端目录
+cd server
 
 # 使用 Docker Compose 启动所有服务
 docker-compose up -d
