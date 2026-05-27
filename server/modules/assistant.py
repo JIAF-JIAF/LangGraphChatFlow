@@ -14,8 +14,8 @@ LangChain Agent 模块
 
 from datetime import datetime
 from typing import Optional, Dict, Any, List
-from langchain_classic.agents import create_tool_calling_agent, AgentExecutor
-# from modules.config_aware_executor import ConfigAwareAgentExecutor
+from langchain_classic.agents import create_tool_calling_agent
+from modules.config_aware_executor import ConfigAwareAgentExecutor
 from langchain_classic.tools import BaseTool
 from pydantic import BaseModel, Field
 
@@ -87,7 +87,7 @@ class Agent:
             prompt=self.prompt
         )
 
-        self._agent_executor = AgentExecutor(
+        self._agent_executor = ConfigAwareAgentExecutor(
             agent=self._agent,
             tools=tools,
             verbose=self.verbose,
