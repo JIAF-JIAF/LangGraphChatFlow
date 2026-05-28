@@ -112,72 +112,44 @@ LangGraphAgent/
 3. **状态持久化**: 通过检查点（Checkpoint）机制实现会话状态持久化
 4. **工作流编排**: 支持多节点路由、条件分支、循环等复杂工作流
 
-### 状态图结构
+### 完整节点流程
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      LangGraph 状态图架构                         │
-└─────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────┐
-│  Layer 1: 入口层                                                 │
-│  ┌─────────────┐                                                │
-│  │    START    │ → 用户请求入口                                  │
-│  └─────────────┘                                                │
-└──────────────────────────────┬──────────────────────────────────┘
-                               ↓
-┌─────────────────────────────────────────────────────────────────┐
-│  Layer 2: 情绪感知层                                             │
-│  ┌─────────────────────┐                                        │
-│  │  feeling_detect      │ → 检测情绪，动态更新 Prompt            │
-│  └─────────────────────┘                                        │
-└──────────────────────────────┬──────────────────────────────────┘
-                               ↓
-┌─────────────────────────────────────────────────────────────────┐
-│  Layer 3: 意图识别层                                             │
-│  ┌─────────────────────┐                                        │
-│  │  intent_recognize    │ → L1关键词 + L3 LLM 多意图识别         │
-│  └─────────────────────┘                                        │
-└──────────────────────────────┬──────────────────────────────────┘
-                               ↓
-┌─────────────────────────────────────────────────────────────────┐
-│  Layer 4: 路由决策层                                             │
-│  ┌─────────────────────┐                                        │
-│  │  intent_router       │ → 根据意图类型分发执行路径              │
-│  └─────────────────────┘                                        │
-└──────────────────────────────┬──────────────────────────────────┘
-                               ↓
-         ┌─────────────────────┼─────────────────────┐
-         │                     │                     │
-         ↓                     ↓                     ↓
-┌─────────────────────────────────────────────────────────────────┐
-│  Layer 5: 执行层                                                 │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
-│  │ 简单意图路径     │  │  复杂意图路径   │  │  系统意图路径   │ │
-│  ├─────────────────┤  ├─────────────────┤  ├─────────────────┤ │
-│  │ RAG/Skill/MCP  │  │  需要多步骤规划  │  │  /help/exit等   │ │
-│  │   /Chat 意图    │  │               │  │                 │ │
-│  ├─────────────────┤  ├─────────────────┤  ├─────────────────┤ │
-│  │ execute_direct │  │     router     │  │   call_model    │ │
-│  │  ┌─→ 循环执行   │  │       ↓         │  │                 │ │
-│  │  │   多个意图   │  │   ┌─ retrieve   │  │                 │ │
-│  │  │   逐个执行   │  │   │    ↓        │  │                 │ │
-│  │  └─→ 汇总结果   │  │   │  generate   │  │                 │ │
-│  │       ↓        │  │   │    ↓        │  │                 │ │
-│  │  call_model    │  │   └─→ plan      │  │                 │ │
-│  │                │  │        ↓        │  │                 │ │
-│  │                │  │  execute_task   │  │                 │ │
-│  │                │  │  ┌─→ 循环执行   │  │                 │ │
-│  │                │  │  │   多个任务   │  │                 │ │
-│  │                │  │  └─→ 检查结果   │  │                 │ │
-│  │                │  │        ↓        │  │                 │ │
-│  │                │  │      check      │  │                 │ │
-│  │                │  │        ↓        │  │                 │ │
-│  │                │  │   call_model    │  │                 │ │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
-
-意图识别结果存储在 state["intents"]，供后续节点使用
+```mermaid
+sequenceDiagram
+    participant User
+    participant Feeling as feeling_detect
+    participant Intent as intent_recognize
+    participant Router as intent_router
+    participant Direct as execute_direct
+    participant RAGRouter as router
+    participant Retrieve as retrieve
+    participant Plan as plan
+    participant Task as execute_task
+    participant Check as check_task_complete
+    participant Model as call_model
+    
+    User->>Feeling: query
+    Feeling->>Intent: feeling
+    Intent->>Router: intents
+    
+    alt direct模式
+        Router->>Direct: execution_mode=direct
+        Direct->>Model: intent_results
+        Model-->>User: 最终回答
+    else plan模式
+        Router->>RAGRouter: execution_mode=plan
+        RAGRouter->>Retrieve: need_retrieve=true
+        Retrieve->>Plan: documents
+        Plan->>Task: subtasks
+        Task->>Check: answer
+        Check->>Task: 继续执行
+        Task->>Check: answer
+        Check->>Model: 所有任务完成
+        Model-->>User: 最终回答
+    else system模式
+        Router->>Model: execution_mode=system
+        Model-->>User: 系统响应
+    end
 ```
 
 ### 执行层详细流程
