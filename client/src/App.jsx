@@ -10,12 +10,8 @@ import './App.css';
  * @returns {React.ReactElement}
  */
 export const App = memo((props) => {
-  const { messages, loading, currentNode, getNodeLabel, sendMessage } = useChatStore();
+  const { messages, loading, sendMessage } = useChatStore();
 
-  /**
-   * 处理发送消息
-   * @param {string} message - 消息内容
-   */
   const handleSend = (message) => {
     sendMessage(message);
   };
@@ -26,8 +22,6 @@ export const App = memo((props) => {
       <ChatArea 
         messages={messages} 
         loading={loading} 
-        currentNode={currentNode}
-        getNodeLabel={getNodeLabel}
       />
       <InputArea onSend={handleSend} loading={loading} />
     </div>

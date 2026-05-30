@@ -1,7 +1,7 @@
 services:
   consul:
     image: consul:1.15
-    container_name: chatbot-consul
+    container_name: agent-consul
     ports:
       - "18500:8500"
     command: agent -server -ui -bootstrap-expect=1 -client=0.0.0.0
@@ -15,7 +15,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: chatbot-redis
+    container_name: agent-redis
     ports:
       - "16379:6379"
     volumes:
@@ -36,7 +36,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: chatbot-mcp
+    container_name: agent-mcp
     command: python mcp_module/start.py
     ports:
       - "8888:8080"
@@ -59,7 +59,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: chatbot-app
+    container_name: agent-app
     depends_on:
       consul:
         condition: service_healthy
@@ -94,7 +94,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: chatbot-db
+    container_name: agent-db
     command: python db.py
     restart: unless-stopped
     ports:
@@ -118,23 +118,23 @@ services:
       consul:
         condition: service_healthy
 
-  db-frontend:
+  client:
     build:
       context: ../client
       dockerfile: Dockerfile
-    container_name: chatbot-db-frontend
+    container_name: agent-client
     restart: unless-stopped
     ports:
       - "15174:80"
     depends_on:
       - db
     labels:
-      - "service.name=db-frontend"
+      - "service.name=client"
       - "service.port=80"
 
   gateway:
     image: nginx:alpine
-    container_name: chatbot-gateway
+    container_name: agent-gateway
     ports:
       - "80:80"
       - "443:443"

@@ -1,28 +1,49 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import './ChatArea.css';
 
-/**
- * 聊天消息类型定义
- * @typedef {Object} Message
- * @property {string} type - 消息类型，'user' | 'bot'
- * @property {string} content - 消息内容
- * @property {number} [id] - 消息唯一标识
- * @property {boolean} [isTyping] - 是否正在打字
- */
+const ThinkingSteps = memo(({ steps }) => {
+  const [expanded, setExpanded] = useState(false);
 
-/**
- * 聊天区域组件
- * @description 展示聊天消息列表，支持打字机效果和加载状态
- *
- * @param {Object} props - 组件属性
- * @param {Message[]} props.messages - 消息列表
- * @param {boolean} props.loading - 是否正在加载
- * @param {string | null} props.currentNode - 当前执行节点
- * @param {Function} props.getNodeLabel - 获取节点显示文本
- * @returns {React.ReactElement}
- */
+  if (!steps || steps.length === 0) return null;
+
+  const hasActiveStep = steps.some((s) => s.status === 'started');
+
+  return (
+    <div className="thinking-steps">
+      <div
+        className="thinking-header"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <span className="thinking-toggle">{expanded ? '▼' : '▶'}</span>
+        <span className="thinking-label">
+          {hasActiveStep ? '思考中...' : '思考过程'}
+        </span>
+        <span className="thinking-count">{steps.length} 步</span>
+      </div>
+      {expanded && (
+        <div className="thinking-body">
+          {steps.map((step, idx) => (
+            <div key={step.step} className={`thinking-step ${step.status}`}>
+              <span className="step-icon">{step.icon}</span>
+              <span className="step-label">{step.label}</span>
+              {step.status === 'started' && (
+                <span className="step-spinner" />
+              )}
+              {step.status === 'completed' && step.detail && (
+                <span className="step-detail">{step.detail}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+});
+
+ThinkingSteps.displayName = 'ThinkingSteps';
+
 export const ChatArea = memo((props) => {
-  const { messages, loading, currentNode, getNodeLabel } = props;
+  const { messages, loading } = props;
 
   return (
     <div className="chat-area">
@@ -31,6 +52,9 @@ export const ChatArea = memo((props) => {
           <div className={`message ${msg.type}`}>
             {msg.type === 'bot' && <div className="message-avatar">🤖</div>}
             <div className="message-content">
+              {msg.type === 'bot' && msg.steps && msg.steps.length > 0 && (
+                <ThinkingSteps steps={msg.steps} />
+              )}
               {msg.content}
               {msg.isTyping && <span className="typing-cursor">|</span>}
             </div>
@@ -43,18 +67,11 @@ export const ChatArea = memo((props) => {
           <div className="message bot">
             <div className="message-avatar">🤖</div>
             <div className="message-content">
-              {currentNode ? (
-                <div className="node-status">
-                  <span className="node-spinner"></span>
-                  <span className="node-label">{getNodeLabel(currentNode)}</span>
-                </div>
-              ) : (
-                <div className="typing-indicator">
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                </div>
-              )}
+              <div className="typing-indicator">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
             </div>
           </div>
         </div>

@@ -132,7 +132,12 @@ class LangGraphAgent:
 
     def stream(self, query: str, session_id: str = "default", uid: Optional[str] = None):
         """
-        流式执行 Agent，逐节点返回状态更新
+        流式执行 Agent，对齐 AG-UI 协议
+
+        使用多流模式同时获取：
+        - updates: 节点完成事件（用于展示思考步骤）
+        - custom: 节点内部自定义进度事件（通过 get_stream_writer 推送）
+        - messages: LLM 逐 token 输出（用于打字机效果）
 
         Args:
             query: 用户查询
@@ -140,7 +145,10 @@ class LangGraphAgent:
             uid: 用户 ID
 
         Yields:
-            Dict[str, Any]: 每个节点的状态更新
+            Tuple[str, Any]: (mode, chunk) 元组
+                mode="updates" 时 chunk 为 {node_name: state_delta}
+                mode="custom" 时 chunk 为自定义事件字典
+                mode="messages" 时 chunk 为 (AIMessageChunk, metadata) 元组
         """
         log(f"=== 开始流式处理请求 ===", "LangGraph")
         log(f"会话ID: {session_id}", "LangGraph")
@@ -155,8 +163,12 @@ class LangGraphAgent:
 
         config = {"configurable": {"thread_id": session_id}}
 
-        for event in self._graph.stream(input_state, config, stream_mode="updates"):
-            yield event
+        for mode, chunk in self._graph.stream(
+            input_state,
+            config,
+            stream_mode=["updates", "custom", "messages"],
+        ):
+            yield (mode, chunk)
 
         log(f"=== 流式处理完成 ===", "LangGraph")
 

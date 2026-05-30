@@ -52,8 +52,8 @@ class LLMClient:
             api_key=self.api_key,
             base_url=self.base_url,
             temperature=self.temperature,
-            # request_timeout=self.request_timeout,
             max_retries=self.max_retries,
+            streaming=True,
         )
 
         self._embedding_client = DashScopeEmbeddings(

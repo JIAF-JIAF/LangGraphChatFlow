@@ -5,7 +5,9 @@
 """
 
 from typing import Dict, Any
+from langgraph.config import get_stream_writer
 from modules.logger import log
+from .steps import Step
 
 
 class FeelingNode:
@@ -14,7 +16,7 @@ class FeelingNode:
     def __init__(self, feeling_detector: Any):
         """
         初始化情绪检测节点
-        
+
         Args:
             feeling_detector: 情绪检测器实例，需实现 detect(text, detailed) 方法
         """
@@ -23,17 +25,22 @@ class FeelingNode:
     def __call__(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """
         执行情绪检测
-        
+
         Args:
             state: 当前状态（包含 query）
-        
+
         Returns:
             更新后的状态（包含 feeling）
         """
+        writer = get_stream_writer()
         query = state["query"]
-        log(f"[节点: feeling_detect] 开始执行，查询: {query[:30]}...", "LangGraph")
+
+        writer(Step.FEELING_DETECT.started_event())
+        log(f"[节点: {Step.FEELING_DETECT.step}] 开始执行，查询: {query[:30]}...", "LangGraph")
 
         feeling = self._detector.detect(query)
-        log(f"[节点: feeling_detect] 情绪分析结果: {feeling}", "LangGraph")
+        detail = f"{feeling.get('feeling', 'default')} ({feeling.get('score', 5)})"
+        writer(Step.FEELING_DETECT.completed_event(detail=detail))
+        log(f"[节点: {Step.FEELING_DETECT.step}] 情绪分析结果: {feeling}", "LangGraph")
 
         return {"feeling": feeling}

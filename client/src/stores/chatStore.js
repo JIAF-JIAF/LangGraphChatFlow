@@ -1,16 +1,6 @@
 import { create } from 'zustand';
 import { sendMessageStream } from '../api/chat';
 
-const NODE_LABELS = {
-  feeling_detect: '正在分析情绪...',
-  router: '正在思考...',
-  retrieve: '正在检索知识库...',
-  plan: '正在规划任务...',
-  execute_task: '正在执行任务...',
-  check_task_complete: '正在检查任务...',
-  call_model: '正在生成回答...'
-};
-
 /**
  * 聊天消息类型定义
  * @typedef {Object} Message
@@ -18,11 +8,22 @@ const NODE_LABELS = {
  * @property {string} content - 消息内容
  * @property {number} [id] - 消息唯一标识
  * @property {boolean} [isTyping] - 是否正在打字
+ * @property {Step[]} [steps] - 思考步骤列表
+ */
+
+/**
+ * 思考步骤类型定义
+ * @typedef {Object} Step
+ * @property {string} step - 步骤标识
+ * @property {string} label - 步骤显示名称
+ * @property {string} icon - 步骤图标
+ * @property {string} status - 步骤状态，'started' | 'completed'
+ * @property {string} [detail] - 步骤详情
  */
 
 /**
  * 聊天状态管理 Store
- * @description 管理聊天消息、会话状态、发送消息等
+ * @description 管理聊天消息、会话状态、思考步骤、发送消息等
  *
  * @returns {Object} 聊天状态和方法
  *
@@ -54,12 +55,6 @@ const useChatStore = create((set, get) => ({
   loading: false,
 
   /**
-   * 当前执行节点
-   * @type {string | null}
-   */
-  currentNode: null,
-
-  /**
    * 添加用户消息
    * @param {string} content - 消息内容
    */
@@ -76,7 +71,7 @@ const useChatStore = create((set, get) => ({
    */
   addBotMessage: (content, id = Date.now()) => {
     set((state) => ({
-      messages: [...state.messages, { type: 'bot', content, id, isTyping: true }]
+      messages: [...state.messages, { type: 'bot', content, id, isTyping: true, steps: [] }]
     }));
   },
 
@@ -108,28 +103,35 @@ const useChatStore = create((set, get) => ({
   },
 
   /**
-   * 设置当前节点
-   * @param {string | null} node - 当前节点名称
+   * 添加思考步骤到消息
+   * @param {number} id - 消息 ID
+   * @param {Step} step - 思考步骤
    */
-  setCurrentNode: (node) => set({ currentNode: node }),
+  addStepToMessage: (id, step) => {
+    set((state) => ({
+      messages: state.messages.map((msg) => {
+        if (msg.id !== id) return msg;
+        const steps = [...(msg.steps || [])];
+        const existingIdx = steps.findIndex((s) => s.step === step.step);
+        if (existingIdx >= 0) {
+          steps[existingIdx] = { ...steps[existingIdx], ...step };
+        } else {
+          steps.push(step);
+        }
+        return { ...msg, steps };
+      })
+    }));
+  },
 
   /**
-   * 获取节点显示文本
-   * @param {string} node - 节点名称
-   * @returns {string} 显示文本
-   */
-  getNodeLabel: (node) => NODE_LABELS[node] || `正在处理: ${node}`,
-
-  /**
-   * 发送消息（SSE 流式）
+   * 发送消息（SSE 流式，对齐 AG-UI 协议）
    * @param {string} message - 用户输入的消息
    */
   sendMessage: async (message) => {
-    const { addUserMessage, addBotMessage, appendToMessage, updateMessage, setLoading, setCurrentNode } = get();
+    const { addUserMessage, addBotMessage, appendToMessage, updateMessage, addStepToMessage, setLoading } = get();
 
     addUserMessage(message);
     setLoading(true);
-    setCurrentNode('start');
 
     const messageId = Date.now();
     addBotMessage('', messageId);
@@ -137,23 +139,24 @@ const useChatStore = create((set, get) => ({
     let fullContent = '';
 
     await sendMessageStream(message, get().sessionId, {
+      onStepStarted: (step, label, icon) => {
+        addStepToMessage(messageId, { step, label, icon, status: 'started' });
+      },
+      onStepFinished: (step, label, icon, detail) => {
+        addStepToMessage(messageId, { step, label, icon, status: 'completed', detail });
+      },
       onToken: (token) => {
         fullContent += token;
         appendToMessage(messageId, token);
       },
-      onNodeUpdate: (data) => {
-        setCurrentNode(data.node);
-      },
-      onDone: (data) => {
+      onDone: () => {
         updateMessage(messageId, fullContent, false);
         setLoading(false);
-        setCurrentNode(null);
       },
       onError: (error) => {
         console.error('SSE 错误:', error);
         updateMessage(messageId, '抱歉，服务暂时不可用，请稍后再试。', false);
         setLoading(false);
-        setCurrentNode(null);
       }
     });
   },
@@ -171,7 +174,6 @@ const useChatStore = create((set, get) => ({
   resetSession: () => set({
     messages: [{ type: 'bot', content: '您好！我是智能助手，有什么可以帮助您的吗？' }],
     sessionId: Date.now().toString(),
-    currentNode: null
   })
 }));
 

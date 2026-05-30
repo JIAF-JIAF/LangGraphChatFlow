@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 from modules.factory import AssistantFactory
 from modules.rate_limit import RateLimiter
 from modules.sse import SSEEventProcessor, format_sse_event
+from modules.sse.events import EventType
 from modules.logger import log, exception
 from modules.context import AgentContext
 
@@ -117,12 +118,12 @@ def create_app():
     @app.route('/chat/stream', methods=['POST'])
     @app.extensions['rate_limiter'].limit("chat_limit")
     def chat_stream():
-        """SSE 流式对话接口"""
+        """SSE 流式对话接口（对齐 AG-UI 协议）"""
         def generate():
             try:
                 data = request.get_json()
                 if not data or 'message' not in data:
-                    yield format_sse_event({"error": "缺少 message 字段"})
+                    yield format_sse_event({"type": EventType.RUN_ERROR, "error": "缺少 message 字段"})
                     return
 
                 user_message = data['message']
@@ -134,11 +135,10 @@ def create_app():
                 assistant = app.extensions['assistant']
                 processor = SSEEventProcessor()
 
-                for event in assistant.stream(user_message, session_id):
-                    for node_name, node_state in event.items():
-                        event_data = processor.process_node(node_name, node_state, session_id)
-                        if event_data:
-                            yield format_sse_event(event_data)
+                for mode, chunk in assistant.stream(user_message, session_id):
+                    event_data = processor.process(mode, chunk, session_id)
+                    if event_data:
+                        yield format_sse_event(event_data)
 
                 yield format_sse_event(processor.get_done_event(session_id))
 
@@ -146,7 +146,7 @@ def create_app():
                 exception("SSE 对话处理异常: {}".format(e), "App", e)
                 import traceback
                 traceback.print_exc()
-                yield format_sse_event({"type": "error", "error": str(e)})
+                yield format_sse_event(processor.get_error_event(str(e), session_id))
 
         return Response(
             stream_with_context(generate()),

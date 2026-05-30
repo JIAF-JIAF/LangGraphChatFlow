@@ -1,114 +1,168 @@
 """
 SSE 事件处理器
-将 LangGraph 节点输出转换为 SSE 事件
+对齐 AG-UI (Agent-User Interaction) 协议标准事件类型
+
+事件类型定义见 events.py
 """
 
-from typing import Callable
+from typing import Any
+
+from .events import EventType, StepStatus
 
 
 class SSEEventProcessor:
-    """SSE 事件处理器：将 LangGraph 节点输出转换为 SSE 事件"""
+    """SSE 事件处理器：将 LangGraph 多流输出转换为 AG-UI 标准事件"""
 
     def __init__(self):
         self.final_answer = ""
         self.final_feeling = {"feeling": "default", "score": 5}
-        self._handlers: dict[str, Callable] = {
-            "call_model": self._handle_call_model,
-            "feeling_detect": self._handle_feeling_detect,
-            "retrieve": self._handle_retrieve,
-            "plan": self._handle_plan,
-            "execute_task": self._handle_execute_task,
-        }
 
-    def process_node(self, node_name: str, node_state: dict, session_id: str) -> dict | None:
-        """处理单个节点，返回 SSE 事件数据"""
-        handler = self._handlers.get(node_name, self._handle_unknown)
-        return handler(node_name, node_state, session_id)
+    def process(self, mode: str, chunk: Any, session_id: str) -> dict | None:
+        """
+        统一处理 LangGraph 多流输出，根据 mode 分发到对应内部方法
+
+        Args:
+            mode: 流模式，"updates" | "custom" | "messages"
+            chunk: 对应模式的 chunk 数据
+            session_id: 会话 ID
+
+        Returns:
+            AG-UI 标准事件数据字典，或 None（无需发送前端时）
+        """
+        if mode == "updates":
+            return self._process_updates(chunk, session_id)
+        elif mode == "custom":
+            return self._process_custom(chunk, session_id)
+        elif mode == "messages":
+            return self._process_token(chunk, session_id)
+        return None
+
+    def _process_custom(self, custom_data: dict, session_id: str) -> dict | None:
+        """
+        处理 custom 流事件（来自 get_stream_writer）
+
+        将节点内部推送的自定义进度事件转换为 AG-UI STEP_STARTED / STEP_FINISHED 事件
+
+        Args:
+            custom_data: get_stream_writer 推送的事件字典
+                - step: 步骤名称
+                - status: StepStatus 枚举值
+                - label: 步骤显示名称
+                - icon: 步骤图标
+                - detail: 步骤详情（可选）
+            session_id: 会话 ID
+
+        Returns:
+            AG-UI 标准事件数据字典
+        """
+        step = custom_data.get("step", "unknown")
+        status = custom_data.get("status", StepStatus.STARTED)
+        label = custom_data.get("label", step)
+        icon = custom_data.get("icon", "🔄")
+        detail = custom_data.get("detail", "")
+
+        if status == StepStatus.STARTED:
+            return {
+                "type": EventType.STEP_STARTED,
+                "step": step,
+                "label": label,
+                "icon": icon,
+                "session_id": session_id,
+            }
+        elif status == StepStatus.COMPLETED:
+            return {
+                "type": EventType.STEP_FINISHED,
+                "step": step,
+                "label": label,
+                "icon": icon,
+                "detail": detail,
+                "session_id": session_id,
+            }
+
+        return None
+
+    def _process_updates(self, updates_data: dict, session_id: str) -> dict | None:
+        """
+        处理 updates 流事件（节点完成后的状态增量）
+
+        仅用于提取 feeling 等最终状态信息，不生成前端事件
+        （思考步骤由 custom 流的 STEP_STARTED/STEP_FINISHED 驱动）
+
+        Args:
+            updates_data: {node_name: state_delta} 字典
+            session_id: 会话 ID
+
+        Returns:
+            None（不生成前端事件，仅更新内部状态）
+        """
+        for node_name, state_delta in updates_data.items():
+            if isinstance(state_delta, dict) and "feeling" in state_delta:
+                self.final_feeling = state_delta["feeling"]
+
+        return None
+
+    def _process_token(self, chunk: tuple, session_id: str) -> dict | None:
+        """
+        处理 messages 流模式的 token 事件
+
+        只转发 call_model 节点的 token 输出，其他节点的 LLM 输出忽略
+
+        Args:
+            chunk: (AIMessageChunk, metadata) 元组
+            session_id: 会话 ID
+
+        Returns:
+            AG-UI TEXT_MESSAGE_CONTENT 事件，或 None
+        """
+        message_chunk, metadata = chunk
+        content = message_chunk.content
+        if not content:
+            return None
+
+        node_name = metadata.get("langgraph_node", "unknown")
+
+        if node_name != "call_model":
+            return None
+
+        self.final_answer += content
+
+        return {
+            "type": EventType.TEXT_MESSAGE_CONTENT,
+            "content": content,
+            "node": node_name,
+            "session_id": session_id,
+        }
 
     def get_done_event(self, session_id: str) -> dict:
-        """生成完成事件"""
+        """
+        生成 RUN_FINISHED 事件
+
+        Args:
+            session_id: 会话 ID
+
+        Returns:
+            AG-UI RUN_FINISHED 事件数据字典
+        """
         return {
-            "type": "done",
+            "type": EventType.RUN_FINISHED,
             "session_id": session_id,
             "reply": self.final_answer,
-            "feeling": self.final_feeling
+            "feeling": self.final_feeling,
         }
 
-    def _handle_call_model(self, node_name: str, node_state: dict, session_id: str) -> dict | None:
-        """处理 call_model 节点：提取增量 token"""
-        answer = node_state.get("answer", "")
-        if not answer:
-            return None
+    def get_error_event(self, error: str, session_id: str) -> dict:
+        """
+        生成 RUN_ERROR 事件
 
-        token = answer[len(self.final_answer):]
-        if not token:
-            return None
+        Args:
+            error: 错误信息
+            session_id: 会话 ID
 
-        self.final_answer = answer
+        Returns:
+            AG-UI RUN_ERROR 事件数据字典
+        """
         return {
-            "type": "token",
-            "node": node_name,
+            "type": EventType.RUN_ERROR,
+            "error": error,
             "session_id": session_id,
-            "content": token
-        }
-
-    def _handle_feeling_detect(self, node_name: str, node_state: dict, session_id: str) -> dict | None:
-        """处理 feeling_detect 节点：提取情绪信息"""
-        feeling = node_state.get("feeling")
-        if not feeling:
-            return None
-
-        self.final_feeling = feeling
-        return {
-            "type": "feeling",
-            "node": node_name,
-            "session_id": session_id,
-            "feeling": feeling
-        }
-
-    def _handle_retrieve(self, node_name: str, node_state: dict, session_id: str) -> dict | None:
-        """处理 retrieve 节点：提取检索文档数量"""
-        documents = node_state.get("documents", [])
-        if not documents:
-            return None
-
-        return {
-            "type": "retrieve",
-            "node": node_name,
-            "session_id": session_id,
-            "doc_count": len(documents)
-        }
-
-    def _handle_plan(self, node_name: str, node_state: dict, session_id: str) -> dict | None:
-        """处理 plan 节点：提取任务规划数量"""
-        tasks = node_state.get("tasks", [])
-        if not tasks:
-            return None
-
-        return {
-            "type": "plan",
-            "node": node_name,
-            "session_id": session_id,
-            "task_count": len(tasks)
-        }
-
-    def _handle_execute_task(self, node_name: str, node_state: dict, session_id: str) -> dict | None:
-        """处理 execute_task 节点：提取任务执行结果"""
-        task_result = node_state.get("task_result")
-        if not task_result:
-            return None
-
-        return {
-            "type": "task",
-            "node": node_name,
-            "session_id": session_id,
-            "task": task_result
-        }
-
-    def _handle_unknown(self, node_name: str, node_state: dict, session_id: str) -> dict:
-        """处理未知节点：返回通用节点更新"""
-        return {
-            "type": "node_update",
-            "node": node_name,
-            "session_id": session_id
         }

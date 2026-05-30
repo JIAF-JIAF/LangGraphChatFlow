@@ -34,6 +34,7 @@ LangGraphAgent/
 │   │   │   ├── context_builder.py # 上下文构建器
 │   │   │   ├── states/          # 状态类型
 │   │   │   ├── executors/       # 执行器（责任链模式）
+│   │   │   ├── nodes/          # 节点定义
 │   │   │   ├── refiners/        # 结果精炼器
 │   │   │   ├── planner/         # 任务规划器
 │   │   │   ├── reflection/      # 反思校验器
@@ -55,7 +56,7 @@ LangGraphAgent/
 │   │   ├── document_loaders/    # 文档加载器（PDF/Word/Excel/Text）
 │   │   ├── prompt/              # Prompt 模板管理
 │   │   ├── rate_limit/          # 限流模块
-│   │   ├── sse/                 # SSE 流式响应
+│   │   ├── sse/                 # SSE 流式响应（AG-UI 协议）
 │   │   ├── ai_client.py         # AI 客户端（兼容 OpenAI SDK）
 │   │   ├── assistant.py         # LangChain Agent（旧版）
 │   │   ├── factory.py           # 工厂函数（组件初始化）
@@ -323,6 +324,32 @@ LangChain Agent.invoke()
 | `execute_task`        | 执行任务 | 调用 MCP 工具（LangChain Agent 执行）    |
 | `check_task_complete` | 检查完成 | 判断是否还有子任务                        |
 | `call_model`          | 调用模型 | 最终回复生成                           |
+
+### 思考步骤枚举（Step）
+
+所有节点通过 `Step` 枚举推送思考过程事件：
+
+```python
+from .steps import Step
+
+writer(Step.FEELING_DETECT.started_event())
+writer(Step.FEELING_DETECT.completed_event(detail="积极 (8)"))
+```
+
+枚举成员：
+
+| Step 成员            | step 标识           | 显示名称   | 图标  |
+| -------------------- | ------------------ | ------ | --- |
+| `FEELING_DETECT`     | `feeling_detect`   | 情绪分析   | 😊  |
+| `INTENT_RECOGNIZE`   | `intent_recognize` | 意图识别   | 🎯  |
+| `INTENT_ROUTER`      | `intent_router`    | 路由决策   | 🔀  |
+| `RAG_ROUTER`         | `rag_router`       | 检索路由   | 🔀  |
+| `RETRIEVE`           | `retrieve`         | 知识检索   | 📚  |
+| `PLAN`               | `plan`             | 任务规划   | 📋  |
+| `EXECUTE_DIRECT`     | `execute_direct`   | 直接执行   | ⚡  |
+| `EXECUTE_TASK`       | `execute_task`     | 执行任务   | ⚙️  |
+| `CHECK_TASK`         | `check_task_complete` | 检查任务 | ✅  |
+| `CALL_MODEL`         | `call_model`       | 生成回答   | 🤖  |
 
 ## 模块化 RAG 框架
 
@@ -895,6 +922,8 @@ Content-Type: application/json
 
 ### SSE 流式对话
 
+采用 **AG-UI (Agent-User Interaction) 协议**，标准化 AI 智能体与用户界面通信的事件流。
+
 ```http
 POST /chat/stream
 Content-Type: application/json
@@ -904,6 +933,26 @@ Content-Type: application/json
   "session_id": "optional-session-id"
 }
 ```
+
+**事件类型**（`EventType` 枚举）：
+
+| 事件类型                 | 说明       | 字段                              |
+| -------------------- | -------- | --------------------------------- |
+| `STEP_STARTED`       | 步骤开始     | step, label, icon                 |
+| `STEP_FINISHED`      | 步骤完成     | step, label, icon, detail         |
+| `TEXT_MESSAGE_CONTENT` | 文本内容流式输出 | content, node                     |
+| `RUN_FINISHED`       | 运行完成     | answer, feeling, session_id       |
+| `RUN_ERROR`          | 运行错误     | error                             |
+
+**多流模式**（LangGraph）：
+
+```python
+stream_mode=["updates", "custom", "messages"]
+```
+
+- `updates`: 节点完成事件（展示思考步骤）
+- `custom`: 节点内部自定义进度事件（通过 `get_stream_writer` 推送）
+- `messages`: LLM 逐 token 输出（打字机效果）
 
 ### 向量库管理 API
 

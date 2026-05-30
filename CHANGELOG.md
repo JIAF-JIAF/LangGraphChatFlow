@@ -7,6 +7,35 @@
 
 ---
 
+## [1.6.0] - 2026-05-30
+
+### Added
+- **AG-UI 协议事件类型枚举化**
+  - 后端：`modules/sse/events.py` 定义 `EventType` 和 `StepStatus` 枚举
+  - 前端：`client/src/api/events.js` 定义事件类型常量
+  - 避免字符串硬编码，提高代码可维护性
+- **思考步骤枚举封装**
+  - `modules/langgraph/nodes/steps.py` 定义 `Step` 枚举
+  - 封装 step/label/icon 属性，提供 `started_event()` / `completed_event()` 方法
+  - 节点代码简化为一行：`writer(Step.FEELING_DETECT.started_event())`
+
+### Changed
+- **Docker 服务命名统一**
+  - 容器名统一为 `agent-{服务名}` 格式（替代 `chatbot-{服务名}`）
+  - 服务名与目录名保持一致：`client`（替代 `db-frontend`）
+  - 更新 `docker-compose.yml` 和 `client/nginx.conf`
+- **SSE 事件处理器优化**
+  - `SSEEventProcessor` 新增 `process()` 方法统一处理多流事件分发
+  - 降低 `app.py` 路由层职责，提高代码内聚性
+- **节点文件简化**
+  - 所有节点文件改为导入 `Step` 枚举，移除局部常量定义
+  - 使用枚举方法替代手动拼字典，代码更简洁
+
+### Fixed
+- `steps.py` 导入路径修正（`modules.sse.events` 替代 `.events`）
+
+---
+
 ## [1.5.0] - 2026-05-25
 
 ### Added
@@ -338,5 +367,5 @@ This project is licensed under the MIT License.
 
 ---
 
-**Last Updated**: 2026-05-25  
-**Current Version**: 1.5.0
+**Last Updated**: 2026-05-30  
+**Current Version**: 1.6.0
