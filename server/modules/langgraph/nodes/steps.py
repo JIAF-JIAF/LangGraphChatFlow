@@ -32,6 +32,13 @@ class Step(Enum):
     CHECK_TASK = ("check_task_complete", "检查任务", "✅")
     CALL_MODEL = ("call_model", "生成回答", "🤖")
 
+    SUPERVISOR = ("supervisor", "Agent 调度", "🔀")
+    RAG_EXPERT = ("rag_expert", "知识检索 Agent", "📚")
+    SKILL_EXPERT = ("skill_expert", "技能执行 Agent", "🎨")
+    MCP_EXPERT = ("mcp_expert", "工具调用 Agent", "🔧")
+    CHAT_EXPERT = ("chat_expert", "对话 Agent", "💬")
+    PLANNER_EXPERT = ("planner_expert", "任务规划 Agent", "📋")
+
     def __init__(self, step, label, icon):
         self._step = step
         self._label = label

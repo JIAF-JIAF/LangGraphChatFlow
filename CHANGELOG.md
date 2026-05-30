@@ -18,6 +18,15 @@
   - `modules/langgraph/nodes/steps.py` 定义 `Step` 枚举
   - 封装 step/label/icon 属性，提供 `started_event()` / `completed_event()` 方法
   - 节点代码简化为一行：`writer(Step.FEELING_DETECT.started_event())`
+- **多 Agent 协作模块（Phase 0：基础设施与状态扩展）**
+  - `multi_agent/` 目录结构：nodes/、subgraphs/、tools/
+  - Feature Flag 机制：`MULTI_AGENT_ENABLED`、`MULTI_AGENT_{NAME}_ENABLED`、`MULTI_AGENT_PARALLEL_ENABLED`，默认关闭
+  - `MultiAgentState`：扩展 AgentState（18 字段 → 20 字段），新增 `current_agent` + `agent_results`（operator.add reducer 支持 Send 并行）
+  - RAG @tool 封装：`knowledge_search(query, kb_name)` + `knowledge_generate(query, context)`
+  - Skill 动态适配：`get_skill_tools(skill_manager)` 透传 + `skill_execute` 兜底委托 SkillExecutor
+  - MCP 动态适配：`get_mcp_tools()` 透传 + `mcp_execute` 兜底委托 MCPExecutor + `reload_mcp_tools()` 热刷新
+  - Planner @tool 封装：`decompose_task(query, context)` + `summarize_results(query, results)`
+  - Step 枚举扩展：新增 SUPERVISOR、RAG_EXPERT、SKILL_EXPERT、MCP_EXPERT、CHAT_EXPERT、PLANNER_EXPERT
 
 ### Changed
 - **Docker 服务命名统一**
